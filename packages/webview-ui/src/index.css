@@ -1,0 +1,31 @@
+body {
+  margin: 1px;
+  padding: 0;
+  background-color: var(--vscode-sideBar-background);
+  color: var(--vscode-sideBar-foreground);
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+  height: 98vh;
+}
+
+pre {
+  overflow-x: auto;
+  white-space: pre;
+  padding: 0.5rem;
+  border-radius: 2px;
+  border: 1px solid var(--vscode-panel-border, yellow);
+}
+
+.codicon-copy {
+  cursor: pointer;
+  color: var(--vscode-icon-foreground);
+
+  &:hover {
+    color: var(--vscode-focusBorder, green);
+  }
+}

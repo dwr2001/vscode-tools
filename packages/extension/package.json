@@ -1,0 +1,48 @@
+{
+  "name": "vscode-tools",
+  "displayName": "vscode-tools",
+  "description": "A VS Code extension with useful tools",
+  "version": "0.0.1",
+  "publisher": "dwr2001",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dwr2001/vscode-tools.git"
+  },
+  "engines": {
+    "node": ">=18",
+    "vscode": ">=1.82.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "vscode-tools.helloWorld",
+        "title": "Hello World"
+      }
+    ],
+    "views": {
+      "explorer": [
+        {
+          "id": "vscode-tools.view",
+          "name": "VSCode Tools View",
+          "icon": "$(tools)",
+          "type": "webview"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "build": "rsbuild build",
+    "watch": "rsbuild build --watch",
+    "check": "biome check --write",
+    "format": "biome format --write",
+    "package": "npm run build && vsce package --no-dependencies"
+  },
+  "devDependencies": {
+    "@vscode/vsce": "^3.6.0"
+  }
+}
