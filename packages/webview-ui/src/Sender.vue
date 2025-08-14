@@ -33,40 +33,42 @@
 </template>
 
 <script setup lang="ts">
-import { nextTick, ref } from 'vue';
+import { nextTick, ref } from "vue";
 
 const { status } = defineProps<{
-  status: 'ready' | 'thinking' | 'answering';
+  status: "ready" | "thinking" | "answering";
 }>();
 
-const input = ref('');
-const height = ref('auto');
+const input = ref("");
+const height = ref("auto");
 
 const emits = defineEmits<{
-  (e: 'submit', content: string): void;
-  (e: 'cancel'): void;
+  (e: "submit", content: string): void;
+  (e: "cancel"): void;
 }>();
 
 function adjustHeight(event: Event) {
-  height.value = 'auto';
+  height.value = "auto";
   const textarea = event.target as HTMLTextAreaElement | null;
   if (textarea) {
-    nextTick(() => (height.value = `${textarea.scrollHeight}px`));
+    nextTick(() => {
+      height.value = `${textarea.scrollHeight}px`;
+    });
   }
 }
 
 const send = () => {
-  if (input.value.trim() === '') return;
-  emits('submit', input.value);
-  input.value = '';
-  height.value = 'auto';
+  if (input.value.trim() === "") return;
+  emits("submit", input.value);
+  input.value = "";
+  height.value = "auto";
 };
 </script>
 
 <style scoped>
 .sender-textarea {
   background-color: var(--vscode-input-background);
-  border: 1px solid var(--vscode-input-border);
+  border: 1px solid var(--vscode-input-border, black);
   color: var(--vscode-input-foreground);
   resize: none;
   overflow-y: auto;
@@ -95,7 +97,7 @@ const send = () => {
 
   &:hover {
     background-color: var(--vscode-button-hoverBackground);
-    border: 1px solid var(--vscode-focusBorder, red);
+    border: 1px solid var(--vscode-focusBorder, darkgrey);
   }
 }
 </style>

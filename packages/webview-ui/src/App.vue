@@ -1,18 +1,11 @@
 <template>
-  <header
-    style="
+  <header style="
       flex: 0 0 auto;
       padding: 8px;
     "
   >
-    <label v-if="toggleThingTag" style="margin-left: 12px; color: var(--vscode-foreground, #cccccc);">
-      <input type="checkbox" v-model="thinkTag" style="margin-right: 4px;" />
-      思考模式
-    </label>
   </header>
-  <main
-    ref="mainContainer"
-    style="
+  <main ref="mainContainer" style="
       flex: 1 1 auto;
       overflow-y: auto;
       box-sizing: border-box;
@@ -30,246 +23,219 @@
 </template>
 
 <script setup lang="ts">
-import type { WebviewApi } from 'vscode-webview';
-import { nextTick, onMounted, onUnmounted, ref, useTemplateRef } from 'vue';
-import AssistantMessage from './AssistantMessage.vue';
-import Sender from './Sender.vue';
-import UserMessage from './UserMessage.vue';
+import type { WebviewApi } from "vscode-webview";
+import { nextTick, onMounted, onUnmounted, ref, useTemplateRef } from "vue";
+import Sender from "./Sender.vue";
+import SSEClientWithThinkTag from "./api";
+import AssistantMessage from "./components/AssistantMessage.vue";
+import UserMessage from "./components/UserMessage.vue";
 
-export type AssistantMessage = {
-  role: 'assistant';
-  content: string;
-  reasoning_content: string;
-  status: 'thinking' | 'answering' | 'completed';
+// system setup
+
+type VscodeEnv = {
+  command: "xiaoke.webview.env";
+  payload: { key: string; value: unknown | undefined };
 };
-type UserMessage = { role: 'user'; content: string };
-type Msg = UserMessage | AssistantMessage;
 
-const messages = ref<Msg[]>([]);
+type VscodeChatOpen = {
+  command: "xiaoke.webview.chat.open";
+  payload: Response;
+};
 
-const toggleThingTag = ref(import.meta.env.MODE === 'development');
-const thinkTag = ref(toggleThingTag.value);
-const status = ref<'ready' | 'thinking' | 'answering'>('ready');
+type VscodeChatMessage = {
+  command: "xiaoke.webview.chat.message";
+  payload: { type: "thinking" | "answering"; buffer: string };
+};
 
-const vscode: WebviewApi<unknown> | undefined =
-  typeof acquireVsCodeApi !== 'undefined' ? acquireVsCodeApi() : undefined;
-let controller: AbortController | null = null;
+type VscodeChatClose = {
+  command: "xiaoke.webview.chat.close";
+  payload: undefined;
+};
 
-const THINK = '</think>';
-const prefixs = ['</think', '</thin', '</thi', '</th', '</t', '</', '<'];
+type VscodeChatError = {
+  command: "xiaoke.webview.chat.error";
+  payload: unknown;
+};
 
-const mainContainer = useTemplateRef('mainContainer');
+const baseURL = ref("http://192.168.0.20:8098");
+const thinkTag = ref(true);
+
+const vscode: WebviewApi<unknown> | undefined = (
+  import.meta.env.MODE === "development"
+    ? false
+    : (JSON.parse(import.meta.env.USEVSCODE || "false") as boolean)
+)
+  ? typeof acquireVsCodeApi !== "undefined"
+    ? acquireVsCodeApi()
+    : undefined
+  : undefined;
+
+const vscodeListener = async (
+  event: MessageEvent<VscodeEnv | VscodeChatOpen | VscodeChatMessage | VscodeChatClose | VscodeChatError>,
+) => {
+  const { command, payload } = event.data;
+  console.debug("VSCode Listener Received message:", command, payload);
+
+  switch (command) {
+    case "xiaoke.webview.env": {
+      if (payload.key === "baseURL" && typeof payload.value === "string") {
+        console.log("baseURL:", payload.value);
+        baseURL.value = payload.value;
+      } else if (payload.key === "thinkTag" && typeof payload.value === "boolean") {
+        console.log("thinkTag:", payload.value);
+        thinkTag.value = payload.value;
+      }
+      break;
+    }
+    case "xiaoke.webview.chat.open": {
+      await open(payload);
+      break;
+    }
+    case "xiaoke.webview.chat.message": {
+      message(payload.type, payload.buffer);
+      break;
+    }
+    case "xiaoke.webview.chat.close": {
+      close();
+      break;
+    }
+    case "xiaoke.webview.chat.error": {
+      error(payload);
+      break;
+    }
+    default:
+      console.warn("Unknown command:", command);
+  }
+};
 
 onMounted(() => {
-  if (typeof vscode !== 'undefined') {
-    window.addEventListener('message', handleMessage);
+  if (typeof vscode !== "undefined") {
+    window.addEventListener("message", vscodeListener);
+    vscode.postMessage({
+      command: "xiaoke.webview.env",
+      payload: { key: "baseURL" },
+    });
+    vscode.postMessage({
+      command: "xiaoke.webview.env",
+      payload: { key: "thingTag" },
+    });
   }
 });
 
 onUnmounted(() => {
-  if (typeof vscode !== 'undefined') {
-    window.removeEventListener('message', handleMessage);
+  if (typeof vscode !== "undefined") {
+    window.removeEventListener("message", vscodeListener);
   }
 });
 
-const handleMessage = async (event: MessageEvent) => {
-  const { command, payload } = event.data as
-    | {
-        command: 'xiaoke.chat.stream';
-        payload: { type: 'thinking' | 'answering'; buffer: string };
-      }
-    | {
-        command: 'xiaoke.chat.end';
-        payload: undefined;
-      }
-    | {
-        command: 'xiaoke.prompt';
-        payload: string;
-      };
+// messages and status
 
-  if (typeof command === 'string') {
-    console.log('Received message:', command, payload);
+export type AMessage = {
+  role: "assistant";
+  content: string;
+  reasoning_content: string;
+  status: "thinking" | "answering" | "completed";
+};
+export type UMessage = { role: "user"; content: string };
 
-    switch (command) {
-      case 'xiaoke.chat.stream': {
-        status.value = payload.type;
-        if (messages.value[messages.value.length - 1].role !== 'assistant') {
-          messages.value.push({
-            role: 'assistant',
-            content: '',
-            reasoning_content: '',
-            status: payload.type,
-          });
-          scrollToBottom();
-        }
-        switch (payload.type) {
-          case 'thinking':
-            (messages.value[messages.value.length - 1] as AssistantMessage).reasoning_content += payload.buffer;
-            break;
-          case 'answering':
-            (messages.value[messages.value.length - 1] as AssistantMessage).content += payload.buffer;
-            (messages.value[messages.value.length - 1] as AssistantMessage).status = 'answering';
-            break;
-        }
-        scrollToBottom();
-        break;
-      }
-      case 'xiaoke.chat.end': {
-        status.value = 'ready';
-        (messages.value[messages.value.length - 1] as AssistantMessage).status = 'completed';
-        break;
-      }
-      case 'xiaoke.prompt': {
-        await send(payload);
-        break;
-      }
-      default:
-        console.warn('Unknown command:', command);
-    }
-  }
+const messages = ref<(UMessage | AMessage)[]>([]);
+const status = ref<"ready" | "thinking" | "answering">("ready");
+const index = ref(-1);
+
+const open = async (response: Response) => {
+  console.log(`SSE connection opened: ${response.ok}.`);
+  status.value = thinkTag.value ? "thinking" : "answering";
+  index.value =
+    messages.value.push({
+      role: "assistant",
+      content: "",
+      reasoning_content: "",
+      status: thinkTag.value ? "thinking" : "answering",
+    }) - 1;
+  scrollToBottom();
 };
 
-async function cancel() {
-  if (typeof vscode !== 'undefined') {
-    vscode.postMessage({
-      command: 'xiaoke.chat.cancel',
-      prompt: undefined,
-    });
-  } else {
-    if (controller) {
-      controller.abort();
-      controller = null;
+const message = (type: "thinking" | "answering", buffer: string) => {
+  switch (type) {
+    case "thinking": {
+      (messages.value[index.value] as AMessage).reasoning_content += buffer;
+      break;
+    }
+    case "answering": {
+      (messages.value[index.value] as AMessage).content += buffer;
+      (messages.value[index.value] as AMessage).status = "answering";
+      status.value = "answering";
+      break;
     }
   }
-  status.value = 'ready';
-  if (messages.value.length > 0 && messages.value[messages.value.length - 1].role === 'assistant') {
-    (messages.value[messages.value.length - 1] as AssistantMessage).status = 'completed';
+  scrollToBottom();
+};
+
+const close = () => {
+  console.log("SSE connection closed");
+  (messages.value[index.value] as AMessage).status = "completed";
+  status.value = "ready";
+  index.value = -1;
+};
+
+const error = (error: unknown) => {
+  console.log("SSE on Error:", error);
+
+  if (messages.value.length > 0 && messages.value[messages.value.length - 1].role === "assistant") {
+    messages.value[messages.value.length - 1].content += `无法连接到服务器：${error}`;
+    (messages.value[messages.value.length - 1] as AMessage).status = "completed";
+  } else {
+    messages.value.push({
+      role: "assistant",
+      content: `连接服务器错误：${error}`,
+      reasoning_content: "",
+      status: "completed",
+    });
+  }
+
+  status.value = "ready";
+  index.value = -1;
+};
+
+let client = new SSEClientWithThinkTag(baseURL.value, thinkTag.value, open, message, close, error);
+
+async function cancel() {
+  if (vscode !== undefined) {
+    vscode.postMessage({ command: "xiaoke.webview.chat.cancel" });
+  } else {
+    await client.cancel();
+  }
+  status.value = "ready";
+  if (messages.value.length > 0 && messages.value[messages.value.length - 1].role === "assistant") {
+    (messages.value[messages.value.length - 1] as AMessage).status = "completed";
   }
 }
 
 async function send(content: string) {
-  messages.value.push({ role: 'user', content: content.trim() });
+  if (content.trim() === "" || status.value !== "ready") {
+    console.error("unready or empty content");
+    return;
+  }
 
-  if (typeof vscode !== 'undefined') {
-    vscode.postMessage({
-      command: 'xiaoke.chat.start',
-      prompt: content,
-    });
+  messages.value.push({ role: "user", content: content.trim() });
+
+  scrollToBottom();
+
+  if (vscode !== undefined) {
+    vscode.postMessage({ command: "xiaoke.webview.chat.invoke", payload: content });
   } else {
-    controller = new AbortController();
-
-    try {
-      const response = await fetch('http://192.168.0.20:8098/getStreamChat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: content }),
-        signal: controller.signal,
-      });
-
-      if (!response.body) {
-        messages.value.push({
-          role: 'assistant',
-          content: '未知错误',
-          reasoning_content: '',
-          status: 'completed',
-        });
-        return;
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder('utf-8');
-      status.value = thinkTag.value ? 'thinking' : 'answering';
-      let buffer = '';
-
-      const index =
-        messages.value.push({
-          role: 'assistant',
-          content: '',
-          reasoning_content: '',
-          status: thinkTag.value ? 'thinking' : 'answering',
-        }) - 1;
-
-      scrollToBottom();
-      stream: while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder
-          .decode(value, { stream: true })
-          .replace(/data:/g, '')
-          .replace(/\n/g, '')
-          .replace(/<\|enter\|>/g, '\n');
-        console.log('receive:', chunk, value);
-
-        if (thinkTag.value === false) {
-          messages.value[index].content += chunk;
-          continue;
-        }
-
-        if (status.value === 'thinking') {
-          buffer += chunk;
-
-          if (buffer.includes(THINK)) {
-            const [before, after] = buffer
-              .split(THINK, 1)
-              .concat(buffer.split(THINK).slice(1).join(THINK))
-              .map((p) => p.trim());
-            (messages.value[index] as AssistantMessage).reasoning_content += before;
-            (messages.value[index] as AssistantMessage).content += after;
-            (messages.value[index] as AssistantMessage).status = 'answering';
-            status.value = 'answering';
-            buffer = '';
-            continue;
-          }
-
-          for (const prefix of prefixs) {
-            if (buffer.endsWith(prefix)) {
-              console.log(buffer, 'end with', prefix);
-              (messages.value[index] as AssistantMessage).reasoning_content += buffer.substring(
-                0,
-                buffer.lastIndexOf(prefix),
-              );
-              buffer = buffer.substring(buffer.lastIndexOf(prefix));
-              console.log(buffer);
-              continue stream;
-            }
-          }
-
-          (messages.value[index] as AssistantMessage).reasoning_content += buffer;
-          buffer = '';
-        } else {
-          if (buffer !== '') console.error('assert error: buffer is not empty');
-          messages.value[index].content += chunk;
-        }
-        scrollToBottom();
-      }
-    } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        console.log('Request was cancelled by user');
-        return;
-      } else {
-        console.error(error);
-        messages.value.push({
-          role: 'assistant',
-          content: '无法连接到服务器，请检查网络连接或服务器状态。',
-          reasoning_content: '',
-          status: 'completed',
-        });
-      }
-    } finally {
-      status.value = 'ready';
-      if (messages.value.length > 0 && messages.value[messages.value.length - 1].role === 'assistant')
-        (messages.value[messages.value.length - 1] as AssistantMessage).status = 'completed';
-      controller = null;
-    }
+    await client.invoke(content);
   }
 }
 
+// scroll to bottom helper
+
+const mainContainer = useTemplateRef("mainContainer");
 const scrollToBottom = () => {
   nextTick(() => {
     mainContainer.value?.scrollTo({
       top: mainContainer.value.scrollHeight,
-      behavior: 'smooth',
+      behavior: "smooth",
     });
   });
 };
@@ -287,7 +253,7 @@ const scrollToBottom = () => {
 
   &:hover {
     background-color: var(--vscode-button-hoverBackground);
-    border: 1px solid var(--vscode-focusBorder, red);
+    border: 1px solid var(--vscode-focusBorder, darkgrey);
   }
 }
 </style>

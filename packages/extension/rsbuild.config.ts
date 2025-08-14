@@ -1,16 +1,23 @@
-import { defineConfig } from '@rsbuild/core';
-import { pluginVue } from '@rsbuild/plugin-vue';
+import { defineConfig } from "@rsbuild/core";
 
 export default defineConfig({
   output: {
+    copy: [
+      {
+        from: "../webview-ui/dist",
+        to: "webview-ui",
+        globOptions: {
+          ignore: ["**/*.LICENSE.txt"],
+        },
+      },
+    ],
     externals: ["vscode"],
     filenameHash: false,
     target: "node",
   },
-  plugins: [pluginVue()],
   source: {
     entry: {
-      "extension": "./src/extension.ts",
-    }
+      extension: "./src/extension.ts",
+    },
   },
 });

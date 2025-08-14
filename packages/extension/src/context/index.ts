@@ -4,7 +4,7 @@ export type ContextProviderDescription = {
   description: string;
   renderInlineAs?: string;
   dependsOnIndexing?: boolean;
-}
+};
 
 export interface ContextItem {
   name: string;
@@ -15,7 +15,6 @@ export interface ContextItem {
 }
 
 export interface ContextProvider<Q> {
-
   get description(): ContextProviderDescription;
 
   contexts(query: Q): Promise<ContextItem[]>;

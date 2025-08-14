@@ -7,7 +7,9 @@
   "scripts": {
     "build": "npm run build --workspace=packages/webview-ui && npm run build --workspace=packages/extension",
     "check": "biome check --write",
-    "format": "biome format --write"
+    "dev": "npm run dev --workspaces",
+    "format": "biome format --write",
+    "package": "npm run build && npm run package --workspaces --if-present"
   },
   "dependencies": {
     "zod": "^4.0.0"

@@ -18,7 +18,7 @@ pre {
   white-space: pre;
   padding: 0.5rem;
   border-radius: 2px;
-  border: 1px solid var(--vscode-panel-border, yellow);
+  border: 1px solid var(--vscode-panel-border, burlywood);
 }
 
 .codicon-copy {
@@ -26,6 +26,6 @@ pre {
   color: var(--vscode-icon-foreground);
 
   &:hover {
-    color: var(--vscode-focusBorder, green);
+    color: var(--vscode-focusBorder, antiquewhite);
   }
 }

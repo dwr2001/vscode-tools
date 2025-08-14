@@ -9,14 +9,12 @@
     "url": "https://github.com/dwr2001/vscode-tools.git"
   },
   "engines": {
-    "node": ">=18",
-    "vscode": ">=1.82.0"
+    "vscode": "^1.82.0"
   },
-  "categories": [
-    "Other"
-  ],
+  "categories": ["Other"],
   "activationEvents": [],
   "main": "./dist/extension.js",
+  "files": ["LICENSE", "package.json", "dist"],
   "contributes": {
     "commands": [
       {
@@ -37,10 +35,8 @@
   },
   "scripts": {
     "build": "rsbuild build",
-    "watch": "rsbuild build --watch",
-    "check": "biome check --write",
-    "format": "biome format --write",
-    "package": "npm run build && vsce package --no-dependencies"
+    "dev": "rsbuild build --watch",
+    "package": "vsce package --no-dependencies"
   },
   "devDependencies": {
     "@vscode/vsce": "^3.6.0"
