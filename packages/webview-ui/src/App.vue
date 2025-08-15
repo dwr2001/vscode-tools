@@ -29,33 +29,7 @@ import Sender from "./Sender.vue";
 import SSEClientWithThinkTag from "./api";
 import AssistantMessage from "./components/AssistantMessage.vue";
 import UserMessage from "./components/UserMessage.vue";
-
-// system setup
-
-type VscodeEnv = {
-  command: "xiaoke.webview.env";
-  payload: { key: string; value: unknown | undefined };
-};
-
-type VscodeChatOpen = {
-  command: "xiaoke.webview.chat.open";
-  payload: Response;
-};
-
-type VscodeChatMessage = {
-  command: "xiaoke.webview.chat.message";
-  payload: { type: "thinking" | "answering"; buffer: string };
-};
-
-type VscodeChatClose = {
-  command: "xiaoke.webview.chat.close";
-  payload: undefined;
-};
-
-type VscodeChatError = {
-  command: "xiaoke.webview.chat.error";
-  payload: unknown;
-};
+import { VscodeChatClose, VscodeChatError, VscodeChatMessage, VscodeChatOpen, VscodeEnv } from "@vscode-tools/protocol";
 
 const baseURL = ref("http://192.168.0.20:8098");
 const thinkTag = ref(true);
@@ -77,7 +51,7 @@ const vscodeListener = async (
   console.debug("VSCode Listener Received message:", command, payload);
 
   switch (command) {
-    case "xiaoke.webview.env": {
+    case "webview.env": {
       if (payload.key === "baseURL" && typeof payload.value === "string") {
         console.log("baseURL:", payload.value);
         baseURL.value = payload.value;
@@ -87,19 +61,19 @@ const vscodeListener = async (
       }
       break;
     }
-    case "xiaoke.webview.chat.open": {
+    case "webview.chat.open": {
       await open(payload);
       break;
     }
-    case "xiaoke.webview.chat.message": {
+    case "webview.chat.message": {
       message(payload.type, payload.buffer);
       break;
     }
-    case "xiaoke.webview.chat.close": {
+    case "webview.chat.close": {
       close();
       break;
     }
-    case "xiaoke.webview.chat.error": {
+    case "webview.chat.error": {
       error(payload);
       break;
     }
@@ -112,11 +86,11 @@ onMounted(() => {
   if (typeof vscode !== "undefined") {
     window.addEventListener("message", vscodeListener);
     vscode.postMessage({
-      command: "xiaoke.webview.env",
+      command: "webview.env",
       payload: { key: "baseURL" },
     });
     vscode.postMessage({
-      command: "xiaoke.webview.env",
+      command: "webview.env",
       payload: { key: "thingTag" },
     });
   }
@@ -201,7 +175,7 @@ let client = new SSEClientWithThinkTag(baseURL.value, thinkTag.value, open, mess
 
 async function cancel() {
   if (vscode !== undefined) {
-    vscode.postMessage({ command: "xiaoke.webview.chat.cancel" });
+    vscode.postMessage({ command: "webview.chat.cancel" });
   } else {
     await client.cancel();
   }
@@ -222,7 +196,7 @@ async function send(content: string) {
   scrollToBottom();
 
   if (vscode !== undefined) {
-    vscode.postMessage({ command: "xiaoke.webview.chat.invoke", payload: content });
+    vscode.postMessage({ command: "webview.chat.invoke", payload: content });
   } else {
     await client.invoke(content);
   }

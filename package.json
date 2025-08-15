@@ -3,20 +3,21 @@
   "displayName": "vscode-tools-package",
   "description": "",
   "version": "0.0.0",
+  "engines": {
+    "node": ">=18"
+  },
   "workspaces": ["packages/*"],
   "scripts": {
-    "build": "npm run build --workspace=packages/webview-ui && npm run build --workspace=packages/extension",
+    "build": "npm run build --workspace=packages/protocol && npm run build --workspace=packages/webview-ui && npm run build --workspace=packages/extension",
     "check": "biome check --write",
     "dev": "npm run dev --workspaces",
     "format": "biome format --write",
     "package": "npm run build && npm run package --workspaces --if-present"
   },
-  "dependencies": {
-    "zod": "^4.0.0"
-  },
   "devDependencies": {
     "@biomejs/biome": "^1.9.0",
     "@rsbuild/core": "^1.4.0",
+    "@rslib/core": "^0.12.0",
     "@types/node": "^18.x",
     "@types/vscode": "^1.82.0",
     "typescript": "^5.8.0"

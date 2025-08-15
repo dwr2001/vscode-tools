@@ -27,10 +27,8 @@ export class VSCodeToolsViewProvider implements vscode.WebviewViewProvider {
       );
       let content = fs.readFileSync(path.join(webviewUiDir.fsPath, "index.html"), "utf8");
 
-      const webviewUri = (file: string) => webviewView.webview.asWebviewUri(vscode.Uri.joinPath(webviewUiDir, file));
-
       for (const file of manifest.allFiles) {
-        content = content.replace(new RegExp(file, "g"), webviewUri(file).toString());
+        content = content.replace(file, `${webviewView.webview.asWebviewUri(vscode.Uri.joinPath(webviewUiDir, file))}`);
       }
 
       webviewView.webview.html = content;
