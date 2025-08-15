@@ -24,7 +24,7 @@
 </template>
 
 <script setup lang="ts">
-import { ToWebviewMessage } from "@vscode-tools/protocol";
+import { CREATE_FILE_DESCRIPTION, CREATE_FILE_SCHEMA, ToWebviewMessage } from "@vscode-tools/protocol";
 import type { WebviewApi } from "vscode-webview";
 import { Ref, nextTick, onMounted, onUnmounted, ref, useTemplateRef } from "vue";
 import Sender from "./Sender.vue";
@@ -33,7 +33,6 @@ import UserMessage, { UserMessageType } from "./components/UserMessage.vue";
 
 import { createDeepSeek } from "@ai-sdk/deepseek";
 import { AssistantContent, streamText } from "ai";
-import z from "zod/v4";
 import { assert } from "./utils";
 
 const apiKey = ref("");
@@ -194,20 +193,9 @@ async function send(content: string) {
           : m,
       ),
       tools: {
-        recipe: {
-          description: "A tool for recipe generation",
-          inputSchema: z.object({
-            recipe: z.object({
-              name: z.string(),
-              ingredients: z.array(
-                z.object({
-                  name: z.string(),
-                  amount: z.string(),
-                }),
-              ),
-              steps: z.array(z.string()),
-            }),
-          }),
+        "create_file": {
+          description: CREATE_FILE_DESCRIPTION,
+          inputSchema: CREATE_FILE_SCHEMA,
         },
       },
       abortSignal: controller.value?.signal,

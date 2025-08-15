@@ -1,3 +1,5 @@
+export { CREATE_FILE_SCHEMA, CREATE_FILE_DESCRIPTION } from "./tools/create-file";
+
 export type Protocol<T extends "vscode" | "webview", C extends string, P> = {
   to: T;
   command: C;
