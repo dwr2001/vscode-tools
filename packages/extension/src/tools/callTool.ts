@@ -1,15 +1,19 @@
-import type { ContextItem } from "./types";
-import { BuiltInToolNames } from "./types";
+import type { ContextItem } from ".";
 
 import { createNewFileImpl } from "./implementations/createNewFile";
 import { readFileImpl } from "./implementations/readFile";
-// import { lsToolImpl } from "./implementations/ls";
+import { CREATE_FILE_SCHEMA,READ_FILE_SCHEMA } from "@vscode-tools/protocol";
+
 export async function callBuiltInTool(functionName: string, args: Record<string, unknown>): Promise<ContextItem[]> {
   switch (functionName) {
-    case BuiltInToolNames.ReadFile:
-      return await readFileImpl(args);
-    case BuiltInToolNames.CreateNewFile:
-      return await createNewFileImpl(args);
+    case "read_file": {
+      const parsed = READ_FILE_SCHEMA.parse(args);
+      return await readFileImpl(parsed);
+    }
+    case "create_new_file": {
+      const parsed = CREATE_FILE_SCHEMA.parse(args);
+      return await createNewFileImpl(parsed);
+    }
     default:
       throw new Error(`Tool "${functionName}" not found`);
   }

@@ -1,13 +1,11 @@
+import z from "zod/v4";
 import { resolveRelativePathInDir } from "../utils/ideUtils";
 import { getUriPathBasename } from "../utils/uri";
-
-import { ContextItem, type ToolImpl } from "../types";
-import { getStringArg } from "../utils/parseArgs";
+import { type ToolImpl } from "..";
 import { VsCodeIde as ide } from "../vsCodeIde";
+import { READ_FILE_SCHEMA } from "@vscode-tools/protocol";
 
-export const readFileImpl: ToolImpl = async (args) => {
-  const filepath = getStringArg(args, "filepath");
-
+export const readFileImpl: ToolImpl<z.infer<typeof READ_FILE_SCHEMA>> = async ({ filepath }) => {
   const firstUriMatch = await resolveRelativePathInDir(filepath);
   if (!firstUriMatch) {
     throw new Error(`File "${filepath}" does not exist. You might want to check the path and try again.`);

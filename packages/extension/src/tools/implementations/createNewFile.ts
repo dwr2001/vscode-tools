@@ -1,14 +1,11 @@
 import { inferResolvedUriFromRelativePath } from "../utils/ideUtils";
-
-import { ContextItem, type ToolImpl } from "../types";
-import { getStringArg } from "../utils/parseArgs";
+import { type ToolImpl } from "..";
 import { getCleanUriPath, getUriPathBasename } from "../utils/uri";
 import { VsCodeIde as ide } from "../vsCodeIde";
+import z from "zod/v4";
+import { CREATE_FILE_SCHEMA } from "@vscode-tools/protocol";
 
-export const createNewFileImpl: ToolImpl = async (args) => {
-  const filepath = getStringArg(args, "filepath");
-  const contents = getStringArg(args, "contents", true);
-
+export const createNewFileImpl: ToolImpl<z.infer<typeof CREATE_FILE_SCHEMA>> = async ({ filepath, contents }) => {
   const resolvedFileUri = await inferResolvedUriFromRelativePath(filepath);
   if (resolvedFileUri) {
     const exists = await ide.fileExists(resolvedFileUri);

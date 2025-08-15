@@ -1,12 +1,17 @@
-import { callBuiltInTool } from "./callTool";
-import * as toolDefinitions from "./definitions";
-import { BuiltInToolNames, Tool, ToolCall, ToolImpl } from "./types";
+export { callBuiltInTool } from "./callTool";
 
-const getToolDefinitions = () => [
-  toolDefinitions.createNewFileTool,
-  toolDefinitions.editFileTool,
-  toolDefinitions.readFileTool,
-];
+export interface ToolCall {
+  id: string;
+  name: string;
+  arguments: string;
+}
 
-export { ToolImpl, Tool, ToolCall, BuiltInToolNames, callBuiltInTool, getToolDefinitions };
-export { createNewFileTool, editFileTool, readFileTool } from "./definitions";
+export type ToolImpl<Arg> = (parameters: Arg) => Promise<ContextItem[]>;
+
+export interface ContextItem {
+  name: string;
+  description: string;
+  content: string;
+  icon?: string;
+  status?: string;
+}

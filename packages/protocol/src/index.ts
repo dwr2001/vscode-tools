@@ -1,4 +1,5 @@
 export { CREATE_FILE_SCHEMA, CREATE_FILE_DESCRIPTION } from "./tools/create-file";
+export { READ_FILE_SCHEMA, READ_FILE_DESCRIPTION } from "./tools/read-file";
 
 export type Protocol<T extends "vscode" | "webview", C extends string, P> = {
   to: T;

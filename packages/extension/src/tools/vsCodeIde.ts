@@ -1,60 +1,22 @@
 import * as URI from "uri-js";
 import * as vscode from "vscode";
 
-const UNSUPPORTED_SCHEMES: Set<string> = new Set();
-const NO_FS_PROVIDER_ERROR = "ENOPRO";
-const MAX_BYTES = 100000;
-
 export class VsCodeIde {
   private static _workspaceDirectories: vscode.Uri[] | undefined = undefined;
-
-  private static async fsOperation<T>(
-    uri: vscode.Uri,
-    delegate: (uri: vscode.Uri) => T,
-    ignoreMissingProviders = true,
-  ): Promise<T | null> {
-    const scheme = uri.scheme;
-    if (ignoreMissingProviders && UNSUPPORTED_SCHEMES.has(scheme)) {
-      return null;
-    }
-    try {
-      return await delegate(uri);
-    } catch (err: unknown) {
-      if (
-        ignoreMissingProviders &&
-        ((err as { name?: string }).name === NO_FS_PROVIDER_ERROR ||
-          (err as { message?: string }).message?.includes(NO_FS_PROVIDER_ERROR))
-      ) {
-        UNSUPPORTED_SCHEMES.add(scheme);
-        console.log("Ignoring missing provider error:", (err as { message?: string }).message);
-        return null;
-      }
-      throw err;
-    }
-  }
 
   private static documentIsCode(uri: vscode.Uri) {
     return uri.scheme === "file" || uri.scheme === "vscode-remote";
   }
 
-  private static async stat(uri: vscode.Uri, ignoreMissingProviders = true): Promise<vscode.FileStat | null> {
-    return await VsCodeIde.fsOperation(
-      uri,
-      async (u) => {
-        return await vscode.workspace.fs.stat(uri);
-      },
-      ignoreMissingProviders,
-    );
-  }
-
-  private static async readFileBytes(uri: vscode.Uri, ignoreMissingProviders = true): Promise<Uint8Array | null> {
-    return await VsCodeIde.fsOperation(
-      uri,
-      async (u) => {
-        return await vscode.workspace.fs.readFile(uri);
-      },
-      ignoreMissingProviders,
-    );
+  private static async stat(uri: vscode.Uri): Promise<vscode.FileStat | null> {
+    try {
+      return await vscode.workspace.fs.stat(uri);
+    } catch (error) {
+      if (error instanceof vscode.FileSystemError) {
+        return null;
+      }
+      throw error;
+    }
   }
 
   private static getViewColumnOfFile(uri: vscode.Uri): vscode.ViewColumn | undefined {
@@ -69,28 +31,6 @@ export class VsCodeIde {
       }
     }
     return undefined;
-  }
-
-  private static getRightViewColumn(): vscode.ViewColumn {
-    let column = vscode.ViewColumn.Beside;
-    const columnOrdering = [
-      vscode.ViewColumn.One,
-      vscode.ViewColumn.Beside,
-      vscode.ViewColumn.Two,
-      vscode.ViewColumn.Three,
-      vscode.ViewColumn.Four,
-      vscode.ViewColumn.Five,
-      vscode.ViewColumn.Six,
-      vscode.ViewColumn.Seven,
-      vscode.ViewColumn.Eight,
-      vscode.ViewColumn.Nine,
-    ];
-    for (const tabGroup of vscode.window.tabGroups.all) {
-      if (columnOrdering.indexOf(tabGroup.viewColumn) > columnOrdering.indexOf(column)) {
-        column = tabGroup.viewColumn;
-      }
-    }
-    return column;
   }
 
   private static async openEditorAndRevealRange(
@@ -120,7 +60,6 @@ export class VsCodeIde {
             resolve(activeEditor);
             return;
           }
-          // Fallback: resolve with the newly opened editor (if any)
           resolve({} as vscode.TextEditor);
         }
       });
@@ -160,39 +99,8 @@ export class VsCodeIde {
   static async readFile(fileUri: string): Promise<string> {
     try {
       const uri = vscode.Uri.parse(fileUri);
-
-      // First, check whether it's a notebook document
-      const notebook =
-        vscode.workspace.notebookDocuments.find((doc) => URI.equal(doc.uri.toString(), uri.toString())) ??
-        (uri.path.endsWith("ipynb") ? await vscode.workspace.openNotebookDocument(uri) : undefined);
-      if (notebook) {
-        return notebook
-          .getCells()
-          .map((cell) => cell.document.getText())
-          .join("\n\n");
-      }
-
-      // Check whether it's an open document
-      const openTextDocument = vscode.workspace.textDocuments.find((doc) =>
-        URI.equal(doc.uri.toString(), uri.toString()),
-      );
-      if (openTextDocument !== undefined) {
-        return openTextDocument.getText();
-      }
-
-      const fileStats = await VsCodeIde.stat(uri);
-      if (fileStats === null || fileStats.size > 10 * MAX_BYTES) {
-        return "";
-      }
-
-      const bytes = await VsCodeIde.readFileBytes(uri);
-      if (bytes === null) {
-        return "";
-      }
-
-      // Truncate the buffer to the first MAX_BYTES
-      const truncatedBytes = bytes.slice(0, MAX_BYTES);
-      const contents = new TextDecoder().decode(truncatedBytes);
+      const bytes = await vscode.workspace.fs.readFile(uri);
+      const contents = new TextDecoder().decode(bytes);
       return contents;
     } catch (e) {
       return "";
