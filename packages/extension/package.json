@@ -84,12 +84,10 @@
     "package": "vsce package --no-dependencies && mv vscode-tools-*.vsix ../.."
   },
   "dependencies": {
-    "@vscode-tools/protocol": "*"
+    "@vscode-tools/protocol": "*",
+    "uri-js": "^4.4.1"
   },
   "devDependencies": {
     "@vscode/vsce": "^3.6.0"
-  },
-  "dependencies": {
-    "uri-js": "^4.4.1"
   }
 }
