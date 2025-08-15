@@ -1,7 +1,7 @@
 import { resolveRelativePathInDir } from "../utils/ideUtils";
 import { getUriPathBasename } from "../utils/uri";
 
-import { ToolImpl } from "../types";
+import { ContextItem, type ToolImpl } from "../types";
 import { getStringArg } from "../utils/parseArgs";
 import { VsCodeIde as ide } from "../vsCodeIde";
 

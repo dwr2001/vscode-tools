@@ -1,4 +1,4 @@
-import { ToolCall } from "../types";
+import type { ToolCall } from "../types";
 
 export function safeParseToolCallArgs(toolCall: ToolCall): Record<string, any> {
   try {

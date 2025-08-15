@@ -1,5 +1,5 @@
-import { joinEncodedUriPathSegmentToUri, joinPathsToUri, pathToUriPathSegment } from "./uri";
 import { VsCodeIde as ide } from "../vsCodeIde";
+import { joinEncodedUriPathSegmentToUri, joinPathsToUri, pathToUriPathSegment } from "./uri";
 
 /*
   This function takes a relative (to workspace) filepath
@@ -69,7 +69,7 @@ export async function inferResolvedUriFromRelativePath(
   // Sometimes the model will decide to only output the base name or small number of path parts
   // in which case we shouldn't create a new file if it matches the current file
   const activeFile = await ide.getCurrentFile();
-  if (activeFile && activeFile.path.endsWith(relativePath)) {
+  if (activeFile?.path.endsWith(relativePath)) {
     return activeFile.path;
   }
 

@@ -36,5 +36,9 @@ export class VSCodeToolsViewProvider implements vscode.WebviewViewProvider {
       console.error("Error loading webview content:", error);
       webviewView.webview.html = `<p>${error}</p>`;
     }
+
+    webviewView.webview.onDidReceiveMessage(async (message) => {
+      console.log("Received message from webview:", message);
+    });
   }
 }

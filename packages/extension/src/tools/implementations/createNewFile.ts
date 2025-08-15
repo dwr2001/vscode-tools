@@ -1,8 +1,8 @@
 import { inferResolvedUriFromRelativePath } from "../utils/ideUtils";
 
-import { ToolImpl } from "../types";
-import { getCleanUriPath, getUriPathBasename } from "../utils/uri";
+import { ContextItem, type ToolImpl } from "../types";
 import { getStringArg } from "../utils/parseArgs";
+import { getCleanUriPath, getUriPathBasename } from "../utils/uri";
 import { VsCodeIde as ide } from "../vsCodeIde";
 
 export const createNewFileImpl: ToolImpl = async (args) => {
@@ -29,7 +29,6 @@ export const createNewFileImpl: ToolImpl = async (args) => {
         },
       },
     ];
-  } else {
-    throw new Error("Failed to resolve path");
   }
+  throw new Error("Failed to resolve path");
 };

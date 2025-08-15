@@ -23,13 +23,13 @@
 </template>
 
 <script setup lang="ts">
+import { VscodeChatClose, VscodeChatError, VscodeChatMessage, VscodeChatOpen, VscodeEnv } from "@vscode-tools/protocol";
 import type { WebviewApi } from "vscode-webview";
 import { nextTick, onMounted, onUnmounted, ref, useTemplateRef } from "vue";
 import Sender from "./Sender.vue";
 import SSEClientWithThinkTag from "./api";
 import AssistantMessage from "./components/AssistantMessage.vue";
 import UserMessage from "./components/UserMessage.vue";
-import { VscodeChatClose, VscodeChatError, VscodeChatMessage, VscodeChatOpen, VscodeEnv } from "@vscode-tools/protocol";
 
 const baseURL = ref("http://192.168.0.20:8098");
 const thinkTag = ref(true);

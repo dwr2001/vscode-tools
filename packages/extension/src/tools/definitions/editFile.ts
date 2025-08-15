@@ -1,5 +1,5 @@
-import { Tool, BuiltInToolNames } from "../types";
 import { EDIT_CODE_INSTRUCTIONS } from "../prompt/defaultSystemMessages";
+import { BuiltInToolNames, type Tool } from "../types";
 
 export interface EditToolArgs {
   filepath: string;

@@ -1,9 +1,10 @@
-import { ContextItem } from "../context";
+import type { ContextItem } from "./types";
 import { BuiltInToolNames } from "./types";
 
 import { createNewFileImpl } from "./implementations/createNewFile";
 import { readFileImpl } from "./implementations/readFile";
-export async function callBuiltInTool(functionName: string, args: any): Promise<ContextItem[]> {
+// import { lsToolImpl } from "./implementations/ls";
+export async function callBuiltInTool(functionName: string, args: Record<string, unknown>): Promise<ContextItem[]> {
   switch (functionName) {
     case BuiltInToolNames.ReadFile:
       return await readFileImpl(args);

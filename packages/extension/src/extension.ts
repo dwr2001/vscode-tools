@@ -1,8 +1,8 @@
 import { type ExtensionContext, commands, window } from "vscode";
-import { VSCodeToolsViewProvider } from "./webview-view-provider";
 import { callBuiltInTool } from "./tools/callTool";
 import { BuiltInToolNames } from "./tools/types";
 import { VsCodeIde } from "./tools/vsCodeIde";
+import { VSCodeToolsViewProvider } from "./webview-view-provider";
 
 export function activate(context: ExtensionContext) {
   console.log('Congratulations, your extension "vscode-tools" is now active!');

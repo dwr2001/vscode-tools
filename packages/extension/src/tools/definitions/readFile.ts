@@ -1,4 +1,4 @@
-import { Tool, BuiltInToolNames } from "../types";
+import { BuiltInToolNames, type Tool } from "../types";
 
 export const readFileTool: Tool = {
   name: BuiltInToolNames.ReadFile,

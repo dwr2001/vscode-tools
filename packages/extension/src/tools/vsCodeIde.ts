@@ -11,7 +11,7 @@ export class VsCodeIde {
   private static async fsOperation<T>(
     uri: vscode.Uri,
     delegate: (uri: vscode.Uri) => T,
-    ignoreMissingProviders: boolean = true,
+    ignoreMissingProviders = true,
   ): Promise<T | null> {
     const scheme = uri.scheme;
     if (ignoreMissingProviders && UNSUPPORTED_SCHEMES.has(scheme)) {
@@ -36,7 +36,7 @@ export class VsCodeIde {
     return uri.scheme === "file" || uri.scheme === "vscode-remote";
   }
 
-  private static async stat(uri: vscode.Uri, ignoreMissingProviders: boolean = true): Promise<vscode.FileStat | null> {
+  private static async stat(uri: vscode.Uri, ignoreMissingProviders = true): Promise<vscode.FileStat | null> {
     return await VsCodeIde.fsOperation(
       uri,
       async (u) => {
@@ -46,10 +46,7 @@ export class VsCodeIde {
     );
   }
 
-  private static async readFileBytes(
-    uri: vscode.Uri,
-    ignoreMissingProviders: boolean = true,
-  ): Promise<Uint8Array | null> {
+  private static async readFileBytes(uri: vscode.Uri, ignoreMissingProviders = true): Promise<Uint8Array | null> {
     return await VsCodeIde.fsOperation(
       uri,
       async (u) => {
