@@ -1,20 +1,12 @@
-import {
-  joinEncodedUriPathSegmentToUri,
-  joinPathsToUri,
-  pathToUriPathSegment,
-} from "./uri"
-import { VsCodeIde } from "../../extension/VsCodeIde";
+import { joinEncodedUriPathSegmentToUri, joinPathsToUri, pathToUriPathSegment } from "./uri";
+import { VsCodeIde as ide } from "../vsCodeIde";
 
 /*
   This function takes a relative (to workspace) filepath
   And checks each workspace for if it exists or not
   Only returns fully resolved URI if it exists
 */
-export async function resolveRelativePathInDir(
-  path: string,
-  ide: VsCodeIde,
-  dirUriCandidates?: string[],
-): Promise<string | undefined> {
+export async function resolveRelativePathInDir(path: string, dirUriCandidates?: string[]): Promise<string | undefined> {
   const dirs = dirUriCandidates ?? (await ide.getWorkspaceDirs());
   for (const dirUri of dirs) {
     const fullUri = joinPathsToUri(dirUri, path);
@@ -34,7 +26,6 @@ export async function resolveRelativePathInDir(
 */
 export async function inferResolvedUriFromRelativePath(
   _relativePath: string,
-  ide: VsCodeIde,
   dirCandidates?: string[],
 ): Promise<string> {
   const relativePath = _relativePath.trim().replaceAll("\\", "/");
@@ -53,11 +44,11 @@ export async function inferResolvedUriFromRelativePath(
 
   // For each suffix, try to find a unique matching dir/file
   for (const suffix of suffixes) {
-    const uris = dirs.map((dir) => ({
+    const uris = dirs.map((dir: string) => ({
       dir,
       partialUri: joinEncodedUriPathSegmentToUri(dir, suffix),
     }));
-    const promises = uris.map(async ({ partialUri, dir }) => {
+    const promises = uris.map(async ({ partialUri, dir }: { partialUri: string; dir: string }) => {
       const exists = await ide.fileExists(partialUri);
       return {
         dir,
@@ -67,14 +58,11 @@ export async function inferResolvedUriFromRelativePath(
     });
     const existenceChecks = await Promise.all(promises);
 
-    const existingUris = existenceChecks.filter(({ exists }) => exists);
+    const existingUris = existenceChecks.filter(({ exists }: { exists: boolean }) => exists);
 
     // If exactly one directory matches, use it
     if (existingUris.length === 1) {
-      return joinEncodedUriPathSegmentToUri(
-        existingUris[0].dir,
-        segments.join("/"),
-      );
+      return joinEncodedUriPathSegmentToUri(existingUris[0].dir, segments.join("/"));
     }
   }
 

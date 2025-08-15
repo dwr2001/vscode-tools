@@ -5,7 +5,7 @@ import { callBuiltInTool } from "./callTool";
 const getToolDefinitions = () => [
   toolDefinitions.createNewFileTool,
   toolDefinitions.editFileTool,
-  toolDefinitions.readFileTool
+  toolDefinitions.readFileTool,
 ];
 
 export { ToolImpl, Tool, ToolCall, BuiltInToolNames, callBuiltInTool, getToolDefinitions };

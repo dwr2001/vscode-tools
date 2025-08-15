@@ -1,4 +1,4 @@
-import { streamText } from 'ai';
+import { streamText } from "ai";
 
 export default class SSEClient {
   private controller?: AbortController;
@@ -14,9 +14,9 @@ export default class SSEClient {
     private readonly onerror: (error: unknown) => void,
   ) {
     const c = streamText({
-      model: 'openai/gpt-4.1',
-      prompt: 'Invent a new holiday and describe its traditions.',
-    })
+      model: "openai/gpt-4.1",
+      prompt: "Invent a new holiday and describe its traditions.",
+    });
   }
 
   public async invoke(content: string) {
@@ -28,8 +28,8 @@ export default class SSEClient {
     try {
       this.controller = new AbortController();
       const c = streamText({
-        model: 'openai/gpt-4.1',
-        prompt: 'Invent a new holiday and describe its traditions.',
+        model: "openai/gpt-4.1",
+        prompt: "Invent a new holiday and describe its traditions.",
         abortSignal: this.controller.signal,
         onAbort: async () => {},
         onChunk: async (chunk) => {

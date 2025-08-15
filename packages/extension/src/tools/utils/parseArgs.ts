@@ -1,8 +1,6 @@
-import { ToolCall } from "./types";
+import { ToolCall } from "../types";
 
-export function safeParseToolCallArgs(
-  toolCall: ToolCall,
-): Record<string, any> {
+export function safeParseToolCallArgs(toolCall: ToolCall): Record<string, any> {
   try {
     return JSON.parse(toolCall.arguments?.trim() || "{}");
   } catch (e) {
@@ -10,15 +8,9 @@ export function safeParseToolCallArgs(
   }
 }
 
-export function getStringArg(
-  args: any,
-  argName: string,
-  allowEmpty = false,
-): string {
+export function getStringArg(args: any, argName: string, allowEmpty = false): string {
   if (!args || !(argName in args) || typeof args[argName] !== "string") {
-    throw new Error(
-      `\`${argName}\` argument is required${allowEmpty ? "" : " and must not be empty"}. (type string)`,
-    );
+    throw new Error(`\`${argName}\` argument is required${allowEmpty ? "" : " and must not be empty"}. (type string)`);
   }
   if (!allowEmpty && !args[argName].trim()) {
     throw new Error(`Argument ${argName} must not be empty`);
@@ -26,11 +18,7 @@ export function getStringArg(
   return args[argName];
 }
 
-export function getOptionalStringArg(
-  args: any,
-  argName: string,
-  allowEmpty = false,
-) {
+export function getOptionalStringArg(args: any, argName: string, allowEmpty = false) {
   if (typeof args?.[argName] === "undefined") {
     return undefined;
   }

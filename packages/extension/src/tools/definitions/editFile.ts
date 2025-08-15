@@ -1,5 +1,5 @@
 import { Tool, BuiltInToolNames } from "../types";
-import { EDIT_CODE_INSTRUCTIONS } from "../../llm/defaultSystemMessages";
+import { EDIT_CODE_INSTRUCTIONS } from "../prompt/defaultSystemMessages";
 
 export interface EditToolArgs {
   filepath: string;
@@ -18,13 +18,12 @@ export const editFileTool: Tool = {
     properties: {
       filepath: {
         type: "string",
-        description:
-          "The path of the file to edit, relative to the root of the workspace.",
+        description: "The path of the file to edit, relative to the root of the workspace.",
       },
       changes: {
         type: "string",
         description: CHANGES_DESCRIPTION,
       },
     },
-    },
+  },
 };

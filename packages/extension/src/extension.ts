@@ -2,7 +2,7 @@ import { type ExtensionContext, commands, window } from "vscode";
 import { VSCodeToolsViewProvider } from "./webview-view-provider";
 import { callBuiltInTool } from "./tools/callTool";
 import { BuiltInToolNames } from "./tools/types";
-import { VsCodeIde } from "./extension/VsCodeIde";
+import { VsCodeIde } from "./tools/vsCodeIde";
 
 export function activate(context: ExtensionContext) {
   console.log('Congratulations, your extension "vscode-tools" is now active!');
@@ -15,23 +15,13 @@ export function activate(context: ExtensionContext) {
     window.registerWebviewViewProvider("vscode-tools.view", new VSCodeToolsViewProvider(context)),
 
     commands.registerCommand("vscode-tools.createNewFile", async () => {
-      console.log("=== CreateNewFile command triggered ===");
-      const ide = new VsCodeIde();
-      console.log("VsCodeIde instance created");
       try {
         const args = {
           filepath: "tmp/created-by-tool.txt",
           contents: "Hello from vscode-tools test command\n",
         };
-        console.log("Calling callBuiltInTool with args:", JSON.stringify(args, null, 2));
-        const items = await callBuiltInTool(
-          BuiltInToolNames.CreateNewFile,
-          args,
-          ide,
-        );
-        console.log("callBuiltInTool returned items:", JSON.stringify(items, null, 2));
+        const items = await callBuiltInTool(BuiltInToolNames.CreateNewFile, args);
         const msg = items?.[0]?.description || "File created";
-        console.log("Success message:", msg);
         window.showInformationMessage(`CreateNewFile: ${msg}`);
       } catch (err) {
         console.error("CreateNewFile command failed:", err);
@@ -40,27 +30,20 @@ export function activate(context: ExtensionContext) {
         window.showErrorMessage(`CreateNewFile failed: ${message}`);
       }
     }),
-    
+
     commands.registerCommand("vscode-tools.readFile", async () => {
-      const ide = new VsCodeIde();
       try {
         const args = {
           filepath: "tmp/created-by-tool.txt",
         };
-        const items = await callBuiltInTool(
-          BuiltInToolNames.ReadFile,
-          args,
-          ide,
-        );
+        const items = await callBuiltInTool(BuiltInToolNames.ReadFile, args);
         const contentPreview = items?.[0]?.content ?? "";
-        window.showInformationMessage(
-          `ReadFile ok, length=${contentPreview.length}`,
-        );
+        window.showInformationMessage(`ReadFile ok, length=${contentPreview.length}`);
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         window.showErrorMessage(`ReadFile failed: ${message}`);
       }
-    })
+    }),
   );
 }
 

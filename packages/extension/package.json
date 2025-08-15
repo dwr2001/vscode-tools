@@ -12,16 +12,10 @@
     "node": ">=18",
     "vscode": "^1.82.0"
   },
-  "categories": [
-    "Other"
-  ],
+  "categories": ["Other"],
   "activationEvents": [],
   "main": "./dist/extension.js",
-  "files": [
-    "LICENSE",
-    "package.json",
-    "dist"
-  ],
+  "files": ["LICENSE", "package.json", "dist"],
   "contributes": {
     "commands": [
       {
@@ -69,10 +63,7 @@
           "type": "string",
           "default": "deepseek-chat",
           "description": "DeepSeek Model",
-          "enum": [
-            "deepseek-chat",
-            "deepseek-coder"
-          ],
+          "enum": ["deepseek-chat", "deepseek-coder"],
           "markdownDescription": "要使用的DeepSeek模型。`deepseek-chat` 适用于一般对话，`deepseek-coder` 适用于编程任务。"
         }
       }
@@ -81,13 +72,15 @@
   "scripts": {
     "build": "rsbuild build",
     "dev": "rsbuild build --watch",
-    "package": "vsce package --no-dependencies && mv vscode-tools-*.vsix ../.."
+    "package": "vsce package --no-dependencies && mv vscode-tools-*.vsix ../..",
+    "format": "biome format --write"
   },
   "dependencies": {
     "@vscode-tools/protocol": "*",
     "uri-js": "^4.4.1"
   },
   "devDependencies": {
-    "@vscode/vsce": "^3.6.0"
+    "@vscode/vsce": "^3.6.0",
+    "@biomejs/biome": "^1.9.0"
   }
 }

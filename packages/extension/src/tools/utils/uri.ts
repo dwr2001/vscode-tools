@@ -62,10 +62,7 @@ export function findUriInDirs(
       }
     }
     if (allDirPartsMatch) {
-      const relativePath = uriPathParts
-        .slice(dirPathParts.length)
-        .map(decodeURIComponent)
-        .join("/");
+      const relativePath = uriPathParts.slice(dirPathParts.length).map(decodeURIComponent).join("/");
       return {
         uri,
         relativePathOrBasename: relativePath,
@@ -106,11 +103,7 @@ export function getUriFileExtension(uri: string) {
   return getFileExtensionFromBasename(baseName);
 }
 
-export function getLastNUriRelativePathParts(
-  dirUriCandidates: string[],
-  uri: string,
-  n: number,
-): string {
+export function getLastNUriRelativePathParts(dirUriCandidates: string[], uri: string, n: number): string {
   const { relativePathOrBasename } = findUriInDirs(uri, dirUriCandidates);
   return getLastNPathParts(relativePathOrBasename, n);
 }
@@ -124,10 +117,7 @@ export function joinPathsToUri(uri: string, ...pathSegments: string[]) {
   return URI.resolve(baseUri, segments.join("/"));
 }
 
-export function joinEncodedUriPathSegmentToUri(
-  uri: string,
-  pathSegment: string,
-) {
+export function joinEncodedUriPathSegmentToUri(uri: string, pathSegment: string) {
   let baseUri = uri;
   if (baseUri.at(-1) !== "/") {
     baseUri += "/";
@@ -154,10 +144,7 @@ export function getShortestUniqueRelativeUriPaths(
       const suffix = segments.slice(i).join("/");
       suffixes.push(suffix); // Now pushing in order from shortest to longest
       // Count occurrences of each suffix
-      segmentCombinationsMap.set(
-        suffix,
-        (segmentCombinationsMap.get(suffix) || 0) + 1,
-      );
+      segmentCombinationsMap.set(suffix, (segmentCombinationsMap.get(suffix) || 0) + 1);
     }
 
     return { uri, segments, suffixes, relativePathOrBasename };
@@ -166,9 +153,7 @@ export function getShortestUniqueRelativeUriPaths(
   return segmentsInfo.map(({ uri, suffixes, relativePathOrBasename }) => {
     // Since suffixes are now ordered from shortest to longest,
     // the first unique one we find will be the shortest
-    const uniquePath =
-      suffixes.find((suffix) => segmentCombinationsMap.get(suffix) === 1) ??
-      relativePathOrBasename; // fallback to full path if no unique suffix found
+    const uniquePath = suffixes.find((suffix) => segmentCombinationsMap.get(suffix) === 1) ?? relativePathOrBasename; // fallback to full path if no unique suffix found
     return { uri, uniquePath };
   });
 }
@@ -183,10 +168,7 @@ export function getLastNPathParts(filepath: string, n: number): string {
 }
 
 export function getUriDescription(uri: string, dirUriCandidates: string[]) {
-  const { relativePathOrBasename, foundInDir } = findUriInDirs(
-    uri,
-    dirUriCandidates,
-  );
+  const { relativePathOrBasename, foundInDir } = findUriInDirs(uri, dirUriCandidates);
   const baseName = getUriPathBasename(uri);
   const extension = getFileExtensionFromBasename(baseName);
   const last2Parts = getLastNUriRelativePathParts(dirUriCandidates, uri, 2);
