@@ -19,13 +19,14 @@ export class VsCodeIde {
     }
     try {
       return await delegate(uri);
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (
         ignoreMissingProviders &&
-        (err.name === NO_FS_PROVIDER_ERROR || err.message?.includes(NO_FS_PROVIDER_ERROR))
+        ((err as { name?: string }).name === NO_FS_PROVIDER_ERROR ||
+          (err as { message?: string }).message?.includes(NO_FS_PROVIDER_ERROR))
       ) {
         UNSUPPORTED_SCHEMES.add(scheme);
-        console.log(`Ignoring missing provider error:`, err.message);
+        console.log("Ignoring missing provider error:", (err as { message?: string }).message);
         return null;
       }
       throw err;
@@ -59,7 +60,10 @@ export class VsCodeIde {
   private static getViewColumnOfFile(uri: vscode.Uri): vscode.ViewColumn | undefined {
     for (const tabGroup of vscode.window.tabGroups.all) {
       for (const tab of tabGroup.tabs) {
-        if ((tab?.input as any)?.uri && URI.equal((tab.input as any).uri, uri.toString())) {
+        // VS Code's TabInput types are union types; use narrowing instead of any
+        const input: unknown = tab?.input as unknown;
+        const inputWithUri = input as { uri?: unknown };
+        if (inputWithUri?.uri && URI.equal(inputWithUri.uri as unknown as string, uri.toString())) {
           return tabGroup.viewColumn;
         }
       }
@@ -111,7 +115,13 @@ export class VsCodeIde {
             });
         } catch (error) {
           console.error("Error opening document:", error);
-          resolve(vscode.window.activeTextEditor!);
+          const activeEditor = vscode.window.activeTextEditor;
+          if (activeEditor) {
+            resolve(activeEditor);
+            return;
+          }
+          // Fallback: resolve with the newly opened editor (if any)
+          resolve({} as vscode.TextEditor);
         }
       });
     });
@@ -138,13 +148,13 @@ export class VsCodeIde {
   }
 
   static async saveFile(fileUri: string): Promise<void> {
-    vscode.window.visibleTextEditors
-      .filter((editor) => VsCodeIde.documentIsCode(editor.document.uri))
-      .forEach((editor) => {
-        if (URI.equal(editor.document.uri.toString(), fileUri)) {
-          editor.document.save();
-        }
-      });
+    const editors = vscode.window.visibleTextEditors;
+    const codeEditors = editors.filter((editor) => VsCodeIde.documentIsCode(editor.document.uri));
+    for (const editor of codeEditors) {
+      if (URI.equal(editor.document.uri.toString(), fileUri)) {
+        editor.document.save();
+      }
+    }
   }
 
   static async readFile(fileUri: string): Promise<string> {
