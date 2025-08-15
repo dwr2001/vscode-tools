@@ -1,36 +1,42 @@
 <template>
-  <header style="
+  <header
+    style="
       flex: 0 0 auto;
       padding: 8px;
     "
   >
   </header>
-  <main ref="mainContainer" style="
+  <main ref="mainContainer"
+    style="
       flex: 1 1 auto;
       overflow-y: auto;
       box-sizing: border-box;
     ">
-    <template v-for="(msg, i) in messages" :key="i">
-      <UserMessage v-if="msg.role === 'user'" :content="msg.content" />
-      <AssistantMessage v-else-if="msg.role === 'assistant'" :content="msg.content"
-        :reasoning_content="msg.reasoning_content" :status="msg.status" />
+    <template v-for="(message, i) in messages" :key="i">
+      <UserMessage v-if="message.role === 'user'" :message="message" />
+      <AssistantMessage v-else-if="message.role === 'assistant'" :message="message" @execute="call" />
     </template>
   </main>
   <footer style="flex: 0 0 auto;">
     <button class="clear-history-button" style="width: 100%;" @click="messages = []">清除历史</button>
-    <Sender :status="status" @submit="send" @cancel="cancel" />
+    <Sender :status="status === 'streaming' ? 'text' : status" @submit="send" @cancel="cancel" />
   </footer>
 </template>
 
 <script setup lang="ts">
+import { ToWebviewMessage } from "@vscode-tools/protocol";
 import type { WebviewApi } from "vscode-webview";
-import { nextTick, onMounted, onUnmounted, ref, useTemplateRef } from "vue";
+import { Ref, nextTick, onMounted, onUnmounted, ref, useTemplateRef } from "vue";
 import Sender from "./Sender.vue";
-import SSEClientWithThinkTag from "./api";
-import AssistantMessage from "./components/AssistantMessage.vue";
-import UserMessage from "./components/UserMessage.vue";
-import { VscodeChatClose, VscodeChatError, VscodeChatMessage, VscodeChatOpen, VscodeEnv } from "@vscode-tools/protocol";
+import AssistantMessage, { AssistantMessageType } from "./components/AssistantMessage.vue";
+import UserMessage, { UserMessageType } from "./components/UserMessage.vue";
 
+import { createDeepSeek } from "@ai-sdk/deepseek";
+import { AssistantContent, streamText } from "ai";
+import z from "zod/v4";
+import { assert } from "./utils";
+
+const apiKey = ref("");
 const baseURL = ref("http://192.168.0.20:8098");
 const thinkTag = ref(true);
 
@@ -44,37 +50,37 @@ const vscode: WebviewApi<unknown> | undefined = (
     : undefined
   : undefined;
 
-const vscodeListener = async (
-  event: MessageEvent<VscodeEnv | VscodeChatOpen | VscodeChatMessage | VscodeChatClose | VscodeChatError>,
-) => {
+const vscodeListener = async (event: MessageEvent<ToWebviewMessage>) => {
   const { command, payload } = event.data;
   console.debug("VSCode Listener Received message:", command, payload);
 
   switch (command) {
-    case "webview.env": {
+    case "env": {
       if (payload.key === "baseURL" && typeof payload.value === "string") {
         console.log("baseURL:", payload.value);
         baseURL.value = payload.value;
       } else if (payload.key === "thinkTag" && typeof payload.value === "boolean") {
         console.log("thinkTag:", payload.value);
         thinkTag.value = payload.value;
+      } else if (payload.key === "apiKey" && typeof payload.value === "string") {
+        console.log("apiKey:", payload.value);
+        apiKey.value = payload.value;
       }
       break;
     }
-    case "webview.chat.open": {
-      await open(payload);
+    case "chat.delta": {
+      // message(payload.type, payload.buffer);
       break;
     }
-    case "webview.chat.message": {
-      message(payload.type, payload.buffer);
+    case "chat.finish": {
+      finish();
       break;
     }
-    case "webview.chat.close": {
-      close();
-      break;
-    }
-    case "webview.chat.error": {
+    case "chat.error": {
       error(payload);
+      break;
+    }
+    case "toolcall": {
       break;
     }
     default:
@@ -86,12 +92,8 @@ onMounted(() => {
   if (typeof vscode !== "undefined") {
     window.addEventListener("message", vscodeListener);
     vscode.postMessage({
-      command: "webview.env",
-      payload: { key: "baseURL" },
-    });
-    vscode.postMessage({
-      command: "webview.env",
-      payload: { key: "thingTag" },
+      command: "env",
+      payload: "apiKey",
     });
   }
 });
@@ -102,87 +104,56 @@ onUnmounted(() => {
   }
 });
 
-// messages and status
-
-export type AMessage = {
-  role: "assistant";
-  content: string;
-  reasoning_content: string;
-  status: "thinking" | "answering" | "completed";
-};
-export type UMessage = { role: "user"; content: string };
-
-const messages = ref<(UMessage | AMessage)[]>([]);
-const status = ref<"ready" | "thinking" | "answering">("ready");
+// messages and status - Updated to use AI SDK compatible types
+const messages = ref<(UserMessageType | AssistantMessageType)[]>([]);
+const status = ref<"ready" | "reasoning" | "streaming">("ready");
 const index = ref(-1);
 
-const open = async (response: Response) => {
-  console.log(`SSE connection opened: ${response.ok}.`);
-  status.value = thinkTag.value ? "thinking" : "answering";
-  index.value =
-    messages.value.push({
-      role: "assistant",
-      content: "",
-      reasoning_content: "",
-      status: thinkTag.value ? "thinking" : "answering",
-    }) - 1;
+const start = () => {
+  status.value = thinkTag.value ? "reasoning" : "streaming";
+  index.value = messages.value.push({ role: "assistant" }) - 1;
   scrollToBottom();
 };
 
-const message = (type: "thinking" | "answering", buffer: string) => {
-  switch (type) {
-    case "thinking": {
-      (messages.value[index.value] as AMessage).reasoning_content += buffer;
-      break;
-    }
-    case "answering": {
-      (messages.value[index.value] as AMessage).content += buffer;
-      (messages.value[index.value] as AMessage).status = "answering";
-      status.value = "answering";
-      break;
-    }
-  }
-  scrollToBottom();
-};
-
-const close = () => {
-  console.log("SSE connection closed");
-  (messages.value[index.value] as AMessage).status = "completed";
+const finish = () => {
   status.value = "ready";
   index.value = -1;
 };
 
 const error = (error: unknown) => {
-  console.log("SSE on Error:", error);
+  const content = `\`\`\`json
+${JSON.stringify(error, null, 2)}
+\`\`\``;
 
-  if (messages.value.length > 0 && messages.value[messages.value.length - 1].role === "assistant") {
-    messages.value[messages.value.length - 1].content += `无法连接到服务器：${error}`;
-    (messages.value[messages.value.length - 1] as AMessage).status = "completed";
-  } else {
-    messages.value.push({
-      role: "assistant",
-      content: `连接服务器错误：${error}`,
-      reasoning_content: "",
-      status: "completed",
-    });
+  const last = messages.value[index.value];
+  if (last.role === "assistant") {
+    last.content = content;
   }
 
   status.value = "ready";
   index.value = -1;
 };
 
-let client = new SSEClientWithThinkTag(baseURL.value, thinkTag.value, open, message, close, error);
+const call = (id: string, name: string, args: unknown) => {
+  if (vscode !== undefined) {
+    vscode.postMessage({
+      command: "toolcall",
+      payload: { id, name, args },
+    });
+  } else {
+    // Handle tool call in webview
+  }
+};
+
+const controller: Ref<AbortController | undefined> = ref(undefined);
 
 async function cancel() {
   if (vscode !== undefined) {
-    vscode.postMessage({ command: "webview.chat.cancel" });
+    vscode.postMessage({ command: "chat.cancel" });
   } else {
-    await client.cancel();
+    controller.value?.abort();
   }
   status.value = "ready";
-  if (messages.value.length > 0 && messages.value[messages.value.length - 1].role === "assistant") {
-    (messages.value[messages.value.length - 1] as AMessage).status = "completed";
-  }
 }
 
 async function send(content: string) {
@@ -196,9 +167,104 @@ async function send(content: string) {
   scrollToBottom();
 
   if (vscode !== undefined) {
-    vscode.postMessage({ command: "webview.chat.invoke", payload: content });
+    vscode.postMessage({ command: "chat.invoke", payload: content });
   } else {
-    await client.invoke(content);
+    controller.value = new AbortController();
+    const client = streamText({
+      model: createDeepSeek({
+        apiKey: apiKey.value,
+      })("deepseek-chat"),
+      messages: messages.value.map((m) =>
+        m.role === "assistant"
+          ? {
+              role: m.role,
+              content: [
+                ...(m.reasoning ? [{ type: "reasoning", text: m.reasoning }] : []),
+                ...(m.content ? [{ type: "text", text: m.content }] : []),
+                ...(m.toolcall
+                  ? Object.entries(m.toolcall).map(([id, value]) => ({
+                      type: "tool-call",
+                      toolCallId: id,
+                      toolName: value.name,
+                      input: value.args,
+                    }))
+                  : []),
+              ] as AssistantContent,
+            }
+          : m,
+      ),
+      tools: {
+        recipe: {
+          description: "A tool for recipe generation",
+          inputSchema: z.object({
+            recipe: z.object({
+              name: z.string(),
+              ingredients: z.array(
+                z.object({
+                  name: z.string(),
+                  amount: z.string(),
+                }),
+              ),
+              steps: z.array(z.string()),
+            }),
+          }),
+        },
+      },
+      abortSignal: controller.value?.signal,
+      onChunk: (event) => {
+        const curr = messages.value[index.value];
+        assert(curr.role === "assistant", "Current message must be an assistant message");
+        console.log(curr.toolcall);
+
+        switch (event.chunk.type) {
+          case "reasoning-delta": {
+            curr.reasoning = (curr.reasoning || "") + event.chunk.text;
+            break;
+          }
+          case "text-delta": {
+            curr.content = (curr.content || "") + event.chunk.text;
+            status.value = "streaming";
+            break;
+          }
+          case "tool-input-start": {
+            curr.toolcall = {
+              ...curr.toolcall,
+              [event.chunk.id]: {
+                name: event.chunk.toolName,
+                args: "",
+              },
+            };
+            break;
+          }
+          case "tool-input-delta": {
+            if (curr.toolcall?.[event.chunk.id]) {
+              curr.toolcall = {
+                ...curr.toolcall,
+                [event.chunk.id]: {
+                  ...curr.toolcall[event.chunk.id],
+                  args: `${curr.toolcall[event.chunk.id].args || ""}${event.chunk.delta}`,
+                },
+              };
+            }
+            break;
+          }
+          case "tool-call": {
+            break;
+          }
+        }
+        scrollToBottom();
+      },
+      onFinish: finish,
+      onError: error,
+    });
+
+    start();
+
+    for await (const part of client.fullStream) {
+      if (part.type === "start") {
+        start();
+      }
+    }
   }
 }
 

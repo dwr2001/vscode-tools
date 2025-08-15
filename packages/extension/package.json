@@ -47,24 +47,21 @@
     "configuration": {
       "title": "VSCode Tools",
       "properties": {
-        "vscode-tools.deepseek.apiKey": {
+        "vscode-tools.apiKey": {
           "type": "string",
           "default": "",
-          "description": "DeepSeek API Key",
-          "markdownDescription": "您的DeepSeek API Key。可以在 [DeepSeek平台](https://platform.deepseek.com/api_keys) 获取。"
+          "description": "DeepSeek API Key"
         },
-        "vscode-tools.deepseek.baseURL": {
+        "vscode-tools.baseURL": {
           "type": "string",
           "default": "https://api.deepseek.com/v1",
-          "description": "DeepSeek API Base URL",
-          "markdownDescription": "DeepSeek API的基础URL。通常不需要修改。"
+          "description": "DeepSeek API Base URL"
         },
-        "vscode-tools.deepseek.model": {
+        "vscode-tools.model": {
           "type": "string",
           "default": "deepseek-chat",
           "description": "DeepSeek Model",
-          "enum": ["deepseek-chat", "deepseek-coder"],
-          "markdownDescription": "要使用的DeepSeek模型。`deepseek-chat` 适用于一般对话，`deepseek-coder` 适用于编程任务。"
+          "enum": ["deepseek-chat", "deepseek-coder"]
         }
       }
     }

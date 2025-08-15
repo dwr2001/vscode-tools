@@ -23,11 +23,7 @@ export type VscodeToolcallRequest = ToVscode<
   }
 >;
 
-export type ToVscodeMessage = 
-  | VscodeChatAbort
-  | VscodeChatStart
-  | VscodeEnvRequest
-  | VscodeToolcallRequest;
+export type ToVscodeMessage = VscodeChatAbort | VscodeChatStart | VscodeEnvRequest | VscodeToolcallRequest;
 
 // message from vscode to webview
 
