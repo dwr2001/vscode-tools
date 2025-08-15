@@ -13,10 +13,5 @@
   "scripts": {
     "build": "rslib build",
     "dev": "rslib build --watch"
-  },
-  "dependencies": {
-    "@ai-sdk/deepseek": "^1.0.0",
-    "ai": "^5.0.0",
-    "zod": "^3.25.0"
   }
 }

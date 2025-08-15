@@ -1,107 +1,69 @@
-export type ToWebview<C, P> = {
+export type Protocol<T extends "vscode" | "webview", C extends string, P> = {
+  to: T;
   command: C;
   payload: P;
 };
 
-export type VscodeEnv = ToWebview<"webview.env", { key: string; value: unknown | undefined }>;
+export type ToVscode<C extends string, P = void> = Protocol<"vscode", C, P>;
+export type ToWebview<C extends string, P = void> = Protocol<"webview", C, P>;
 
-// Chat stream events
-export type VscodeChatStart = ToWebview<"webview.chat.start", { id: string }>;
+// message from webview to vscode
+
+export type VscodeChatAbort = ToVscode<"chat.abort">;
+export type VscodeChatStart = ToVscode<"chat.start">;
+
+export type VscodeEnvRequest = ToWebview<"env", string>;
+
+export type VscodeToolcallRequest = ToVscode<
+  "toolcall",
+  {
+    id: string;
+    name: string;
+    args: unknown;
+  }
+>;
+
+export type ToVscodeMessage = 
+  | VscodeChatAbort
+  | VscodeChatStart
+  | VscodeEnvRequest
+  | VscodeToolcallRequest;
+
+// message from vscode to webview
 
 export type VscodeChatDelta = ToWebview<
-  "webview.chat.delta",
+  "chat.delta",
+  | {
+      type: "reasoning-delta" | "text-delta";
+      text: string;
+    }
+  | {
+      type: "tool-input-start";
+      id: string;
+      name: string;
+    }
+  | {
+      type: "tool-input-delta";
+      id: string;
+      delta: string;
+    }
+>;
+export type VscodeChatError = ToWebview<"chat.error", string>;
+export type VscodeChatFinish = ToWebview<"chat.finish">;
+
+export type VscodeEnvResponse = ToWebview<"env", { key: string; value?: unknown }>;
+
+export type VscodeToolcallResponse = ToWebview<
+  "toolcall",
   {
     id: string;
-    type: "text" | "tool_call";
-    content: string;
-    toolCallId?: string;
-    toolName?: string;
-    toolArgs?: string;
+    result?: unknown;
   }
 >;
 
-export type VscodeChatFinish = ToWebview<
-  "webview.chat.finish",
-  {
-    id: string;
-    finishReason: "stop" | "length" | "content_filter" | "tool_calls";
-    usage?: {
-      promptTokens: number;
-      completionTokens: number;
-      totalTokens: number;
-    };
-  }
->;
-
-export type VscodeChatError = ToWebview<
-  "webview.chat.error",
-  {
-    id: string;
-    error: string;
-    details?: unknown;
-  }
->;
-
-// Tool call events
-export type VscodeToolCallRequest = ToWebview<
-  "webview.tool.request",
-  {
-    id: string;
-    toolCallId: string;
-    toolName: string;
-    args: Record<string, unknown>;
-  }
->;
-
-export type VscodeToolCallResponse = ToWebview<
-  "webview.tool.response",
-  {
-    id: string;
-    toolCallId: string;
-    result: unknown;
-    error?: string;
-  }
->;
-
-// Legacy types (keeping for compatibility)
-export type VscodeChatOpen = ToWebview<"webview.chat.open", Response>;
-export type VscodeChatMessage = ToWebview<"webview.chat.message", { type: "thinking" | "answering"; buffer: string }>;
-export type VscodeChatClose = ToWebview<"webview.chat.close", undefined>;
-
-// Union type for all webview messages
-export type WebviewMessage =
-  | VscodeEnv
-  | VscodeChatStart
+export type ToWebviewMessage =
   | VscodeChatDelta
-  | VscodeChatFinish
   | VscodeChatError
-  | VscodeToolCallRequest
-  | VscodeToolCallResponse
-  | VscodeChatOpen
-  | VscodeChatMessage
-  | VscodeChatClose;
-
-// Message types from webview to extension
-export type FromWebview<C, P> = {
-  command: C;
-  payload: P;
-};
-
-export type WebviewChatRequest = FromWebview<
-  "chat.send",
-  {
-    message: string;
-    conversationId?: string;
-  }
->;
-
-export type WebviewToolResponse = FromWebview<
-  "tool.response",
-  {
-    toolCallId: string;
-    result: unknown;
-    error?: string;
-  }
->;
-
-export type WebviewMessage_FromWebview = WebviewChatRequest | WebviewToolResponse;
+  | VscodeChatFinish
+  | VscodeEnvResponse
+  | VscodeToolcallResponse;
