@@ -15,5 +15,6 @@ export default defineConfig({
   },
   output: {
     manifest: true,
+    inlineStyles: true,
   },
 });
