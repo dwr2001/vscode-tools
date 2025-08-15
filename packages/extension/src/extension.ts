@@ -1,30 +1,67 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 import { type ExtensionContext, commands, window } from "vscode";
 import { VSCodeToolsViewProvider } from "./webview-view-provider";
+import { callBuiltInTool } from "./tools/callTool";
+import { BuiltInToolNames } from "./tools/types";
+import { VsCodeIde } from "./extension/VsCodeIde";
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
 export function activate(context: ExtensionContext) {
-  // Use the console to output diagnostic information (console.log) and errors (console.error)
-  // This line of code will only be executed once when your extension is activated
   console.log('Congratulations, your extension "vscode-tools" is now active!');
 
-  // The command has been defined in the package.json file
-  // Now provide the implementation of the command with registerCommand
-  // The commandId parameter must match the command field in package.json
-  const disposable = commands.registerCommand("vscode-tools.helloWorld", () => {
-    // The code you place here will be executed every time your command is executed
-    // Display a message box to the user
-    window.showInformationMessage("Hello World from vscode-tools!");
-  });
-
-  context.subscriptions.push(disposable);
-
   context.subscriptions.push(
+    commands.registerCommand("vscode-tools.helloWorld", () => {
+      window.showInformationMessage("Hello World from vscode-tools!");
+    }),
+
     window.registerWebviewViewProvider("vscode-tools.view", new VSCodeToolsViewProvider(context)),
+
+    commands.registerCommand("vscode-tools.createNewFile", async () => {
+      console.log("=== CreateNewFile command triggered ===");
+      const ide = new VsCodeIde();
+      console.log("VsCodeIde instance created");
+      try {
+        const args = {
+          filepath: "tmp/created-by-tool.txt",
+          contents: "Hello from vscode-tools test command\n",
+        };
+        console.log("Calling callBuiltInTool with args:", JSON.stringify(args, null, 2));
+        const items = await callBuiltInTool(
+          BuiltInToolNames.CreateNewFile,
+          args,
+          ide,
+        );
+        console.log("callBuiltInTool returned items:", JSON.stringify(items, null, 2));
+        const msg = items?.[0]?.description || "File created";
+        console.log("Success message:", msg);
+        window.showInformationMessage(`CreateNewFile: ${msg}`);
+      } catch (err) {
+        console.error("CreateNewFile command failed:", err);
+        const message = err instanceof Error ? err.message : String(err);
+        console.error("Error message:", message);
+        window.showErrorMessage(`CreateNewFile failed: ${message}`);
+      }
+    }),
+    
+    commands.registerCommand("vscode-tools.readFile", async () => {
+      const ide = new VsCodeIde();
+      try {
+        const args = {
+          filepath: "tmp/created-by-tool.txt",
+        };
+        const items = await callBuiltInTool(
+          BuiltInToolNames.ReadFile,
+          args,
+          ide,
+        );
+        const contentPreview = items?.[0]?.content ?? "";
+        window.showInformationMessage(
+          `ReadFile ok, length=${contentPreview.length}`,
+        );
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        window.showErrorMessage(`ReadFile failed: ${message}`);
+      }
+    })
   );
 }
 
-// This method is called when your extension is deactivated
 export function deactivate() {}
