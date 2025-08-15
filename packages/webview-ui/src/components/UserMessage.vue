@@ -2,11 +2,16 @@
 import { marked } from "marked";
 import MessageBubble from "./MessageBubble.vue";
 
-const { content } = defineProps<{ content: string }>();
+export type UserMessageType = {
+  role: "user";
+  content: string;
+};
+
+const { message } = defineProps<{ message: UserMessageType }>();
 </script>
 
 <template>
   <MessageBubble role="user">
-    <div v-html="marked(content)" />
+    <div v-html="marked(message.content)" />
   </MessageBubble>
 </template>

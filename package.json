@@ -11,8 +11,14 @@
     "build": "npm run build --workspace=packages/protocol && npm run build --workspace=packages/webview-ui && npm run build --workspace=packages/extension",
     "check": "biome check --write",
     "dev": "npm run dev --workspaces",
+    "dev:web": "npm run dev --workspace=packages/webview-ui",
     "format": "biome format --write",
     "package": "npm run build && npm run package --workspaces --if-present"
+  },
+  "dependencies": {
+    "@ai-sdk/deepseek": "^1.0.0",
+    "ai": "^5.0.0",
+    "zod": "^3.25.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.0",

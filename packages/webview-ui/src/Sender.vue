@@ -15,28 +15,27 @@
       :style="{ height: height }"
       v-model="input"
     />
-    <button
+    <vsc-button
       v-if="status === 'ready'"
       @click="send"
-      class="sender-button"
     >
       <i class="codicon codicon-send" />
-    </button>
-    <button
+    </vsc-button>
+    <vsc-button
       v-else
       @click="emits('cancel')"
-      class="sender-button"
     >
       <i class="codicon codicon-stop-circle" />
-    </button>
+    </vsc-button>
   </div>
 </template>
 
 <script setup lang="ts">
 import { nextTick, ref } from "vue";
+import VscButton from "./components/ui/vsc-button.vue";
 
 const { status } = defineProps<{
-  status: "ready" | "thinking" | "answering";
+  status: "ready" | "reasoning" | "text";
 }>();
 
 const input = ref("");
@@ -83,21 +82,6 @@ const send = () => {
   &:focus {
     outline: none;
     box-shadow: 0 0 0 1px var(--vscode-focusBorder, black);
-  }
-}
-
-.sender-button {
-  background-color: var(--vscode-button-background);
-  border: 1px solid var(--vscode-button-border, black);
-  color: var(--vscode-button-foreground);
-  align-self: flex-end;
-  border-radius: 2px;
-  cursor: pointer;
-  margin-top: 0.25rem;
-
-  &:hover {
-    background-color: var(--vscode-button-hoverBackground);
-    border: 1px solid var(--vscode-focusBorder, darkgrey);
   }
 }
 </style>
