@@ -61,7 +61,8 @@ export class TreeContextProvider implements ContextProvider<TreeContextQuery> {
     const path = require("node:path");
 
     function generateTree(dir: string, prefix: string = "", isLast: boolean = true): string[] {
-      const items = fs.readdirSync(dir, { withFileTypes: true })
+      const items = fs
+        .readdirSync(dir, { withFileTypes: true })
         .filter((item: any) => !item.name.startsWith(".") && item.name !== "node_modules")
         .sort((a: any, b: any) => {
           // 文件夹在前，文件在后
@@ -71,22 +72,22 @@ export class TreeContextProvider implements ContextProvider<TreeContextQuery> {
         });
 
       const lines: string[] = [];
-      
+
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
         const isLastItem = i === items.length - 1;
         const connector = isLastItem ? "└── " : "├── ";
         const nextPrefix = isLastItem ? "    " : "│   ";
-        
+
         lines.push(prefix + connector + item.name);
-        
+
         if (item.isDirectory()) {
           const subDir = path.join(dir, item.name);
           const subLines = generateTree(subDir, prefix + nextPrefix, isLastItem);
           lines.push(...subLines);
         }
       }
-      
+
       return lines;
     }
 
@@ -97,6 +98,4 @@ export class TreeContextProvider implements ContextProvider<TreeContextQuery> {
       throw new Error(`Failed to generate tree: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
-
-
 }

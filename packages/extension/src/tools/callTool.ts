@@ -1,10 +1,10 @@
-import type { ContextItem } from ".";
+import type { ContextItem } from "../context";
 
-import { createNewFileImpl } from "./implementations/createNewFile";
-import { readFileImpl } from "./implementations/readFile";
-import { CREATE_FILE_SCHEMA,READ_FILE_SCHEMA } from "@vscode-tools/protocol";
+import { createNewFileImpl } from "./createNewFile";
+import { readFileImpl } from "./readFile";
+import { CREATE_FILE_SCHEMA, READ_FILE_SCHEMA } from "@vscode-tools/protocol";
 
-export async function callBuiltInTool(functionName: string, args: Record<string, unknown>): Promise<ContextItem[]> {
+export async function callTool(functionName: string, args: Record<string, unknown>): Promise<ContextItem[]> {
   switch (functionName) {
     case "read_file": {
       const parsed = READ_FILE_SCHEMA.parse(args);

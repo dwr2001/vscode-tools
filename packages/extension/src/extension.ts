@@ -1,5 +1,5 @@
 import { type ExtensionContext, commands, window } from "vscode";
-import { callBuiltInTool } from "./tools/callTool";
+import { callTool } from "./tools/callTool";
 import { VSCodeToolsViewProvider } from "./webview-view-provider";
 import { TreeContextProvider } from "./context/tree-context-provider";
 
@@ -19,7 +19,7 @@ export function activate(context: ExtensionContext) {
           filepath: "tmp/created-by-tool.txt",
           contents: "Hello from vscode-tools test command\n",
         };
-        const items = await callBuiltInTool("create_new_file", args);
+        const items = await callTool("create_new_file", args);
         const msg = items?.[0]?.description || "File created";
         window.showInformationMessage(`CreateNewFile: ${msg}`);
       } catch (err) {
@@ -35,7 +35,7 @@ export function activate(context: ExtensionContext) {
         const args = {
           filepath: "tmp/created-by-tool.txt",
         };
-        const items = await callBuiltInTool("read_file", args);
+        const items = await callTool("read_file", args);
         const contentPreview = items?.[0]?.content ?? "";
         window.showInformationMessage(`ReadFile ok, length=${contentPreview.length}`);
       } catch (err) {
@@ -48,12 +48,12 @@ export function activate(context: ExtensionContext) {
       try {
         const treeProvider = new TreeContextProvider();
         const contexts = await treeProvider.contexts({});
-        
+
         if (contexts && contexts.length > 0) {
           const context = contexts[0];
           const message = `Tree Context: ${context.name}\nDescription: ${context.description}\nContent length: ${context.content.length}`;
           window.showInformationMessage(message);
-          
+
           // 在输出面板中显示完整的树结构
           const outputChannel = window.createOutputChannel("Tree Context Test");
           outputChannel.show();

@@ -193,7 +193,7 @@ async function send(content: string) {
           : m,
       ),
       tools: {
-        "create_file": {
+        create_file: {
           description: CREATE_FILE_DESCRIPTION,
           inputSchema: CREATE_FILE_SCHEMA,
         },

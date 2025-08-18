@@ -1,17 +1,5 @@
-export { callBuiltInTool } from "./callTool";
+import { ContextItem } from "../context";
 
-export interface ToolCall {
-  id: string;
-  name: string;
-  arguments: string;
-}
+export { callTool } from "./callTool";
 
-export type ToolImpl<Arg> = (parameters: Arg) => Promise<ContextItem[]>;
-
-export interface ContextItem {
-  name: string;
-  description: string;
-  content: string;
-  icon?: string;
-  status?: string;
-}
+export type Tool<Arg> = (parameters: Arg) => Promise<ContextItem[]>;
