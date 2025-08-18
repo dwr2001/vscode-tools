@@ -78,8 +78,7 @@
     "format": "biome format --write"
   },
   "dependencies": {
-    "@vscode-tools/protocol": "*",
-    "uri-js": "^4.4.1"
+    "@vscode-tools/protocol": "*"
   },
   "devDependencies": {
     "@vscode/vsce": "^3.6.0",

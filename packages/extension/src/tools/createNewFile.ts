@@ -1,8 +1,8 @@
+import * as path from "node:path";
 import type { CREATE_FILE_SCHEMA } from "@vscode-tools/protocol";
 import * as vscode from "vscode";
 import type z from "zod/v4";
 import type { Tool } from ".";
-import { getCleanUriPath, getUriPathBasename } from "./uri";
 
 export const createNewFileImpl: Tool<z.infer<typeof CREATE_FILE_SCHEMA>> = async ({ filepath, contents }) => {
   // Check if file exists
@@ -49,8 +49,8 @@ export const createNewFileImpl: Tool<z.infer<typeof CREATE_FILE_SCHEMA>> = async
 
   return [
     {
-      name: getUriPathBasename(filepath),
-      description: getCleanUriPath(filepath),
+      name: path.basename(filepath),
+      description: filepath,
       content: "File created successfuly",
       uri: {
         type: "file",
