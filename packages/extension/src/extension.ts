@@ -1,7 +1,7 @@
 import { type ExtensionContext, commands, window } from "vscode";
+import { TreeContextProvider } from "./context/tree-context-provider";
 import { callTool } from "./tools/callTool";
 import { VSCodeToolsViewProvider } from "./webview-view-provider";
-import { TreeContextProvider } from "./context/tree-context-provider";
 
 export function activate(context: ExtensionContext) {
   console.log('Congratulations, your extension "vscode-tools" is now active!');

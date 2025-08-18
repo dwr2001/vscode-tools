@@ -1,4 +1,4 @@
-import { ContextItem } from "../context";
+import type { ContextItem } from "../context";
 
 export { callTool } from "./callTool";
 

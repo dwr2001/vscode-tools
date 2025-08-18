@@ -1,7 +1,9 @@
+import * as fs from "node:fs";
+import * as path from "node:path";
 import * as vscode from "vscode";
 import type { ContextItem, ContextProvider } from "./index";
 
-export type TreeContextQuery = {};
+export type TreeContextQuery = Record<string, never>;
 
 export class TreeContextProvider implements ContextProvider<TreeContextQuery> {
   get description() {
@@ -57,14 +59,12 @@ export class TreeContextProvider implements ContextProvider<TreeContextQuery> {
 
   private async executeTreeCommand(rootPath: string): Promise<string> {
     // 使用 Node.js fs 模块生成树结构，避免编码问题
-    const fs = require("node:fs");
-    const path = require("node:path");
 
-    function generateTree(dir: string, prefix: string = "", isLast: boolean = true): string[] {
+    function generateTree(dir: string, prefix = "", isLast = true): string[] {
       const items = fs
         .readdirSync(dir, { withFileTypes: true })
-        .filter((item: any) => !item.name.startsWith(".") && item.name !== "node_modules")
-        .sort((a: any, b: any) => {
+        .filter((item: fs.Dirent) => !item.name.startsWith(".") && item.name !== "node_modules")
+        .sort((a: fs.Dirent, b: fs.Dirent) => {
           // 文件夹在前，文件在后
           if (a.isDirectory() && !b.isDirectory()) return -1;
           if (!a.isDirectory() && b.isDirectory()) return 1;
