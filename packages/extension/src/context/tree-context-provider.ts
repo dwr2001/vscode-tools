@@ -56,97 +56,47 @@ export class TreeContextProvider implements ContextProvider<TreeContextQuery> {
   }
 
   private async executeTreeCommand(rootPath: string): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const { spawn } = require("node:child_process");
+    // 使用 Node.js fs 模块生成树结构，避免编码问题
+    const fs = require("node:fs");
+    const path = require("node:path");
 
-      // Determine the tree command based on the platform
-      const isWindows = process.platform === "win32";
-      const command = isWindows ? "tree" : "tree";
-      const args = isWindows ? ["/F", "/A"] : ["-a", "-I", "node_modules|.git"];
+    function generateTree(dir: string, prefix: string = "", isLast: boolean = true): string[] {
+      const items = fs.readdirSync(dir, { withFileTypes: true })
+        .filter((item: any) => !item.name.startsWith(".") && item.name !== "node_modules")
+        .sort((a: any, b: any) => {
+          // 文件夹在前，文件在后
+          if (a.isDirectory() && !b.isDirectory()) return -1;
+          if (!a.isDirectory() && b.isDirectory()) return 1;
+          return a.name.localeCompare(b.name);
+        });
 
-      const child = spawn(command, args, {
-        cwd: rootPath,
-        shell: true,
-      });
-
-      let output = "";
-      let errorOutput = "";
-
-      child.stdout.on("data", (data: Buffer) => {
-        output += data.toString();
-      });
-
-      child.stderr.on("data", (data: Buffer) => {
-        errorOutput += data.toString();
-      });
-
-      child.on("close", (code: number) => {
-        if (code === 0) {
-          resolve(output.trim());
-        } else {
-          // If tree command fails, try to provide a fallback
-          if (isWindows) {
-            // On Windows, if tree command fails, try dir command
-            this.executeDirCommand(rootPath).then(resolve).catch(reject);
-          } else {
-            reject(new Error(`Tree command failed with code ${code}: ${errorOutput}`));
-          }
+      const lines: string[] = [];
+      
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        const isLastItem = i === items.length - 1;
+        const connector = isLastItem ? "└── " : "├── ";
+        const nextPrefix = isLastItem ? "    " : "│   ";
+        
+        lines.push(prefix + connector + item.name);
+        
+        if (item.isDirectory()) {
+          const subDir = path.join(dir, item.name);
+          const subLines = generateTree(subDir, prefix + nextPrefix, isLastItem);
+          lines.push(...subLines);
         }
-      });
+      }
+      
+      return lines;
+    }
 
-      child.on("error", (error: Error) => {
-        // If tree command is not available, try alternative approaches
-        if (isWindows) {
-          this.executeDirCommand(rootPath).then(resolve).catch(reject);
-        } else {
-          reject(error);
-        }
-      });
-    });
+    try {
+      const treeLines = generateTree(rootPath);
+      return treeLines.join("\n");
+    } catch (error) {
+      throw new Error(`Failed to generate tree: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
-  private async executeDirCommand(rootPath: string): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const { spawn } = require("node:child_process");
 
-      const child = spawn("dir", ["/B", "/S"], {
-        cwd: rootPath,
-        shell: true,
-      });
-
-      let output = "";
-      let errorOutput = "";
-
-      child.stdout.on("data", (data: Buffer) => {
-        output += data.toString();
-      });
-
-      child.stderr.on("data", (data: Buffer) => {
-        errorOutput += data.toString();
-      });
-
-      child.on("close", (code: number) => {
-        if (code === 0) {
-          // Convert dir output to a tree-like format
-          const lines = output.split("\n").filter((line) => line.trim());
-          const treeOutput = lines
-            .map((line) => {
-              const relativePath = line.replace(rootPath, "").replace(/\\/g, "/");
-              const depth = (relativePath.match(/\//g) || []).length;
-              const indent = "  ".repeat(depth);
-              const fileName = relativePath.split("/").pop() || "";
-              return `${indent}${fileName}`;
-            })
-            .join("\n");
-          resolve(treeOutput);
-        } else {
-          reject(new Error(`Dir command failed with code ${code}: ${errorOutput}`));
-        }
-      });
-
-      child.on("error", (error: Error) => {
-        reject(error);
-      });
-    });
-  }
 }

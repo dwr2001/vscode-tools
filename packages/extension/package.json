@@ -32,6 +32,11 @@
         "command": "vscode-tools.readFile",
         "title": "Read File",
         "category": "VSCode Tools"
+      },
+      {
+        "command": "vscode-tools.testTreeContext",
+        "title": "Test Tree Context",
+        "category": "VSCode Tools"
       }
     ],
     "views": {
