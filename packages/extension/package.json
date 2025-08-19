@@ -78,7 +78,9 @@
     "format": "biome format --write"
   },
   "dependencies": {
-    "@vscode-tools/protocol": "*"
+    "@vscode-tools/protocol": "*",
+    "treeify": "^1.1.0",
+    "directory-tree": "^3.5.1"
   },
   "devDependencies": {
     "@vscode/vsce": "^3.6.0",
