@@ -39,15 +39,12 @@ const apiKey = ref("");
 const baseURL = ref("http://192.168.0.20:8098");
 const thinkTag = ref(true);
 
-const vscode: WebviewApi<unknown> | undefined = (
+const vscode: WebviewApi<unknown> | undefined =
   import.meta.env.MODE === "development"
-    ? false
-    : (JSON.parse(import.meta.env.USEVSCODE || "false") as boolean)
-)
-  ? typeof acquireVsCodeApi !== "undefined"
-    ? acquireVsCodeApi()
-    : undefined
-  : undefined;
+    ? undefined
+    : typeof acquireVsCodeApi !== "undefined"
+      ? acquireVsCodeApi()
+      : undefined;
 
 const vscodeListener = async (event: MessageEvent<ToWebviewMessage>) => {
   const { command, payload } = event.data;
@@ -62,7 +59,6 @@ const vscodeListener = async (event: MessageEvent<ToWebviewMessage>) => {
         console.log("thinkTag:", payload.value);
         thinkTag.value = payload.value;
       } else if (payload.key === "apiKey" && typeof payload.value === "string") {
-        console.log("apiKey:", payload.value);
         apiKey.value = payload.value;
       }
       break;
@@ -165,7 +161,7 @@ async function send(content: string) {
 
   scrollToBottom();
 
-  if (vscode !== undefined) {
+  if (vscode !== undefined && false) {
     vscode.postMessage({ command: "chat.invoke", payload: content });
   } else {
     controller.value = new AbortController();
@@ -245,8 +241,6 @@ async function send(content: string) {
       onFinish: finish,
       onError: error,
     });
-
-    start();
 
     for await (const part of client.fullStream) {
       if (part.type === "start") {

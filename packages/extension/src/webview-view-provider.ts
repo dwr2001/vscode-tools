@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import * as vscode from "vscode";
 import { TextDecoder } from "node:util";
+import * as vscode from "vscode";
 
 export class VSCodeToolsViewProvider implements vscode.WebviewViewProvider {
   private _context: vscode.ExtensionContext;
@@ -52,6 +52,7 @@ export class VSCodeToolsViewProvider implements vscode.WebviewViewProvider {
     }
 
     webviewView.webview.onDidReceiveMessage(async (message) => {
+      console.log("received message:", message);
       try {
         const { command, payload } = message as { command: string; payload?: any };
         switch (command) {

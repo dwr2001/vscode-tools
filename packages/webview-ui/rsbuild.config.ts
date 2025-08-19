@@ -8,11 +8,6 @@ export default defineConfig({
       origin: "*",
     },
   },
-  source: {
-    define: {
-      "import.meta.env.USEVSCODE": JSON.stringify(process.env.USEVSCODE || "false"),
-    },
-  },
   output: {
     manifest: true,
     inlineStyles: true,
