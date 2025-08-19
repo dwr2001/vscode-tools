@@ -5,9 +5,15 @@ import type z from "zod/v4";
 import type { Tool } from ".";
 
 export const readFileImpl: Tool<z.infer<typeof READ_FILE_SCHEMA>> = async ({ filepath }) => {
+  const root = vscode.workspace.workspaceFolders?.[0]?.uri;
+  if (!root) {
+    throw new Error("No workspace folder open to resolve relative path");
+  }
+  const relativePath = filepath.replace(/^\.\//, "");
+  const uri = vscode.Uri.joinPath(root, relativePath);
+
   const content = await (async () => {
     try {
-      const uri = vscode.Uri.parse(filepath);
       const bytes = await vscode.workspace.fs.readFile(uri);
       const contents = new TextDecoder().decode(bytes);
       return contents;
@@ -18,12 +24,12 @@ export const readFileImpl: Tool<z.infer<typeof READ_FILE_SCHEMA>> = async ({ fil
 
   return [
     {
-      name: path.basename(filepath),
-      description: filepath,
+      name: path.basename(uri.fsPath),
+      description: uri.toString(),
       content,
       uri: {
         type: "file",
-        value: filepath,
+        value: uri.toString(),
       },
     },
   ];

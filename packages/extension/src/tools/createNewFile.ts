@@ -5,10 +5,16 @@ import type z from "zod/v4";
 import type { Tool } from ".";
 
 export const createNewFileImpl: Tool<z.infer<typeof CREATE_FILE_SCHEMA>> = async ({ filepath, contents }) => {
+  const root = vscode.workspace.workspaceFolders?.[0]?.uri;
+  if (!root) {
+    throw new Error("No workspace folder open to resolve relative path");
+  }
+  const relativePath = filepath.replace(/^\.\//, "");
+  const targetUri = vscode.Uri.joinPath(root, relativePath);
   // Check if file exists
   const exists = await (async () => {
     try {
-      const stat = await vscode.workspace.fs.stat(vscode.Uri.parse(filepath));
+      const stat = await vscode.workspace.fs.stat(targetUri);
       return stat !== null;
     } catch (error) {
       if (error instanceof vscode.FileSystemError) {
@@ -23,11 +29,11 @@ export const createNewFileImpl: Tool<z.infer<typeof CREATE_FILE_SCHEMA>> = async
   }
 
   // Write file
-  await vscode.workspace.fs.writeFile(vscode.Uri.parse(filepath), Buffer.from(contents));
+  await vscode.workspace.fs.writeFile(targetUri, Buffer.from(contents));
 
   // Open file
   await (async () => {
-    const doc = await vscode.workspace.openTextDocument(vscode.Uri.parse(filepath));
+    const doc = await vscode.workspace.openTextDocument(targetUri);
     await vscode.window.showTextDocument(doc, {
       viewColumn: vscode.ViewColumn.One,
       preview: false,
@@ -41,7 +47,7 @@ export const createNewFileImpl: Tool<z.infer<typeof CREATE_FILE_SCHEMA>> = async
       (editor) => editor.document.uri.scheme === "file" || editor.document.uri.scheme === "vscode-remote",
     );
     for (const editor of codeEditors) {
-      if (editor.document.uri.toString() === filepath) {
+      if (editor.document.uri.toString() === targetUri.toString()) {
         await editor.document.save();
       }
     }
@@ -49,12 +55,12 @@ export const createNewFileImpl: Tool<z.infer<typeof CREATE_FILE_SCHEMA>> = async
 
   return [
     {
-      name: path.basename(filepath),
-      description: filepath,
+      name: path.basename(targetUri.fsPath),
+      description: targetUri.toString(),
       content: "File created successfuly",
       uri: {
         type: "file",
-        value: filepath,
+        value: targetUri.toString(),
       },
     },
   ];

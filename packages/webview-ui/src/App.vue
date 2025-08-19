@@ -161,91 +161,87 @@ async function send(content: string) {
 
   scrollToBottom();
 
-  if (vscode !== undefined && false) {
-    vscode.postMessage({ command: "chat.invoke", payload: content });
-  } else {
-    controller.value = new AbortController();
-    const client = streamText({
-      model: createDeepSeek({
-        apiKey: apiKey.value,
-      })("deepseek-chat"),
-      messages: messages.value.map((m) =>
-        m.role === "assistant"
-          ? {
-              role: m.role,
-              content: [
-                ...(m.reasoning ? [{ type: "reasoning", text: m.reasoning }] : []),
-                ...(m.content ? [{ type: "text", text: m.content }] : []),
-                ...(m.toolcall
-                  ? Object.entries(m.toolcall).map(([id, value]) => ({
-                      type: "tool-call",
-                      toolCallId: id,
-                      toolName: value.name,
-                      input: value.args,
-                    }))
-                  : []),
-              ] as AssistantContent,
-            }
-          : m,
-      ),
-      tools: {
-        create_file: {
-          description: CREATE_FILE_DESCRIPTION,
-          inputSchema: CREATE_FILE_SCHEMA,
-        },
+  controller.value = new AbortController();
+  const client = streamText({
+    model: createDeepSeek({
+      apiKey: apiKey.value,
+    })("deepseek-chat"),
+    messages: messages.value.map((m) =>
+      m.role === "assistant"
+        ? {
+            role: m.role,
+            content: [
+              ...(m.reasoning ? [{ type: "reasoning", text: m.reasoning }] : []),
+              ...(m.content ? [{ type: "text", text: m.content }] : []),
+              ...(m.toolcall
+                ? Object.entries(m.toolcall).map(([id, value]) => ({
+                    type: "tool-call",
+                    toolCallId: id,
+                    toolName: value.name,
+                    input: value.args,
+                  }))
+                : []),
+            ] as AssistantContent,
+          }
+        : m,
+    ),
+    tools: {
+      create_file: {
+        description: CREATE_FILE_DESCRIPTION,
+        inputSchema: CREATE_FILE_SCHEMA,
       },
-      abortSignal: controller.value?.signal,
-      onChunk: (event) => {
-        const curr = messages.value[index.value];
-        assert(curr.role === "assistant", "Current message must be an assistant message");
-        console.log(curr.toolcall);
+    },
+    abortSignal: controller.value?.signal,
+    onChunk: (event) => {
+      const curr = messages.value[index.value];
+      assert(curr.role === "assistant", "Current message must be an assistant message");
+      console.log(curr.toolcall);
 
-        switch (event.chunk.type) {
-          case "reasoning-delta": {
-            curr.reasoning = (curr.reasoning || "") + event.chunk.text;
-            break;
-          }
-          case "text-delta": {
-            curr.content = (curr.content || "") + event.chunk.text;
-            status.value = "streaming";
-            break;
-          }
-          case "tool-input-start": {
+      switch (event.chunk.type) {
+        case "reasoning-delta": {
+          curr.reasoning = (curr.reasoning || "") + event.chunk.text;
+          break;
+        }
+        case "text-delta": {
+          curr.content = (curr.content || "") + event.chunk.text;
+          status.value = "streaming";
+          break;
+        }
+        case "tool-input-start": {
+          curr.toolcall = {
+            ...curr.toolcall,
+            [event.chunk.id]: {
+              name: event.chunk.toolName,
+              args: "",
+            },
+          };
+          break;
+        }
+        case "tool-input-delta": {
+          if (curr.toolcall?.[event.chunk.id]) {
             curr.toolcall = {
               ...curr.toolcall,
               [event.chunk.id]: {
-                name: event.chunk.toolName,
-                args: "",
+                ...curr.toolcall[event.chunk.id],
+                args: `${curr.toolcall[event.chunk.id].args || ""}${event.chunk.delta}`,
               },
             };
-            break;
           }
-          case "tool-input-delta": {
-            if (curr.toolcall?.[event.chunk.id]) {
-              curr.toolcall = {
-                ...curr.toolcall,
-                [event.chunk.id]: {
-                  ...curr.toolcall[event.chunk.id],
-                  args: `${curr.toolcall[event.chunk.id].args || ""}${event.chunk.delta}`,
-                },
-              };
-            }
-            break;
-          }
-          case "tool-call": {
-            break;
-          }
+          break;
         }
-        scrollToBottom();
-      },
-      onFinish: finish,
-      onError: error,
-    });
-
-    for await (const part of client.fullStream) {
-      if (part.type === "start") {
-        start();
+        case "tool-call": {
+          break;
+        }
       }
+      scrollToBottom();
+    },
+    onFinish: finish,
+    onError: error,
+  });
+
+  for await (const part of client.fullStream) {
+    if (part.type === "start") {
+      start();
     }
   }
 }
