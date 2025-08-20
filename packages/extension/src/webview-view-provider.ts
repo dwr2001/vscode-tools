@@ -65,8 +65,8 @@ export class VSCodeToolsViewProvider implements vscode.WebviewViewProvider {
           break;
         }
 
-        case "chat.start": {
-          console.log("chat.start triggered with messages:", payload);
+        case "chat.init": {
+          console.log("chat.init triggered with messages:", payload);
           await this.startAIStream(payload);
           break;
         }
@@ -183,7 +183,9 @@ export class VSCodeToolsViewProvider implements vscode.WebviewViewProvider {
       // 等待流开始
       for await (const part of client.fullStream) {
         if (part.type === "start") {
-          break;
+          await this._webviewView?.webview.postMessage({
+            command: "chat.start",
+          });
         }
       }
     } catch (error) {

@@ -31,7 +31,7 @@ import {
   VscodeToolCallRequest,
 } from "@vscode-tools/protocol";
 import type { WebviewApi } from "vscode-webview";
-import { Ref, nextTick, onMounted, onUnmounted, ref, useTemplateRef } from "vue";
+import { Ref, nextTick, onMounted, onUnmounted, ref, unref, useTemplateRef } from "vue";
 import Sender from "./Sender.vue";
 import AssistantMessage from "./components/AssistantMessage.vue";
 import UserMessage from "./components/UserMessage.vue";
@@ -42,13 +42,15 @@ import { assert } from "./utils";
 
 const apiKey = ref("");
 const baseURL = ref("http://192.168.0.20:8098");
-const thinkTag = ref(true);
+const thinkTag = ref(JSON.parse(process.env.USE_VSCODE || "true") as boolean);
 
 const vscode: WebviewApi<unknown> | undefined =
   import.meta.env.MODE === "development"
     ? undefined
-    : typeof acquireVsCodeApi !== "undefined"
-      ? acquireVsCodeApi()
+    : JSON.parse(process.env.USE_VSCODE || "true")
+      ? typeof acquireVsCodeApi !== "undefined"
+        ? acquireVsCodeApi()
+        : undefined
       : undefined;
 
 const vscodeListener = async (event: MessageEvent<ToWebviewMessage>) => {
@@ -64,6 +66,10 @@ const vscodeListener = async (event: MessageEvent<ToWebviewMessage>) => {
       } else if (payload.key === "apiKey" && typeof payload.value === "string") {
         apiKey.value = payload.value;
       }
+      break;
+    }
+    case "chat.start": {
+      start();
       break;
     }
     case "chat.delta": {
@@ -83,11 +89,12 @@ const vscodeListener = async (event: MessageEvent<ToWebviewMessage>) => {
       break;
     }
     default:
-      console.error("Unknown command:", command, payload);
+      console.warn("Unknown command from vscode:", command);
   }
 };
 
 onMounted(() => {
+  console.log("mount vscode === undefined", vscode === undefined);
   if (typeof vscode !== "undefined") {
     window.addEventListener("message", vscodeListener);
     vscode.postMessage({
@@ -109,13 +116,7 @@ const status = ref<"ready" | "reasoning" | "streaming">("ready");
 const index = ref(-1);
 
 const start = () => {
-  console.log("call start");
-  // vscode?.postMessage({
-  //   command: "chat.start",
-  //   payload: messages.value,
-  // } as VscodeChatStart);
   index.value = messages.value.push({ role: "assistant" }) - 1;
-  console.log("call start");
   scrollToBottom();
 };
 
@@ -197,77 +198,84 @@ async function send(content: string) {
 
   scrollToBottom();
 
-  controller.value = new AbortController();
-  const client = streamText({
-    model: createDeepSeek({
-      apiKey: apiKey.value,
-    })("deepseek-chat"),
-    messages: messages.value
-      .map<ModelMessage | undefined>((m) => {
-        switch (m.role) {
-          case "assistant": {
-            return {
-              role: m.role,
-              content: [
-                ...(m.reasoning ? [{ type: "reasoning", text: m.reasoning }] : []),
-                ...(m.content ? [{ type: "text", text: m.content }] : []),
-                ...(m.toolcall
-                  ? Object.entries(m.toolcall).map(([id, value]) => ({
-                      type: "tool-call",
-                      toolCallId: id,
-                      toolName: value.name,
-                      input: value.args,
-                    }))
-                  : []),
-              ] as AssistantContent,
-            };
+  if (vscode !== undefined) {
+    vscode.postMessage({
+      command: "chat.init",
+      payload: JSON.parse(JSON.stringify(unref(messages))),
+    });
+  } else {
+    controller.value = new AbortController();
+    const client = streamText({
+      model: createDeepSeek({
+        apiKey: apiKey.value,
+      })("deepseek-chat"),
+      messages: messages.value
+        .map<ModelMessage | undefined>((m) => {
+          switch (m.role) {
+            case "assistant": {
+              return {
+                role: m.role,
+                content: [
+                  ...(m.reasoning ? [{ type: "reasoning", text: m.reasoning }] : []),
+                  ...(m.content ? [{ type: "text", text: m.content }] : []),
+                  ...(m.toolcall
+                    ? Object.entries(m.toolcall).map(([id, value]) => ({
+                        type: "tool-call",
+                        toolCallId: id,
+                        toolName: value.name,
+                        input: value.args,
+                      }))
+                    : []),
+                ] as AssistantContent,
+              };
+            }
+            case "user": {
+              return m;
+            }
           }
-          case "user": {
-            return m;
-          }
-        }
-      })
-      .filter((m): m is ModelMessage => m !== undefined),
-    tools: {
-      [`${CREATE_FILE}`]: {
-        description: CREATE_FILE_DESCRIPTION,
-        inputSchema: CREATE_FILE_SCHEMA,
+        })
+        .filter((m): m is ModelMessage => m !== undefined),
+      tools: {
+        [`${CREATE_FILE}`]: {
+          description: CREATE_FILE_DESCRIPTION,
+          inputSchema: CREATE_FILE_SCHEMA,
+        },
       },
-    },
-    abortSignal: controller.value?.signal,
-    onChunk: (event) => {
-      const curr = messages.value[index.value];
-      assert(curr.role === "assistant", "Current message must be an assistant message");
+      abortSignal: controller.value?.signal,
+      onChunk: (event) => {
+        const curr = messages.value[index.value];
+        assert(curr.role === "assistant", "Current message must be an assistant message");
 
-      switch (event.chunk.type) {
-        case "reasoning-delta": {
-          curr.reasoning = (curr.reasoning || "") + event.chunk.text;
-          break;
+        switch (event.chunk.type) {
+          case "reasoning-delta": {
+            curr.reasoning = (curr.reasoning || "") + event.chunk.text;
+            break;
+          }
+          case "text-delta": {
+            curr.content = (curr.content || "") + event.chunk.text;
+            break;
+          }
+          case "tool-call": {
+            curr.toolcall = {
+              [event.chunk.toolCallId]: {
+                name: event.chunk.toolName,
+                args: JSON.stringify(event.chunk.input),
+              },
+            };
+            console.log(curr.toolcall);
+            break;
+          }
         }
-        case "text-delta": {
-          curr.content = (curr.content || "") + event.chunk.text;
-          break;
-        }
-        case "tool-call": {
-          curr.toolcall = {
-            [event.chunk.toolCallId]: {
-              name: event.chunk.toolName,
-              args: JSON.stringify(event.chunk.input),
-            },
-          };
-          console.log(curr.toolcall);
-          break;
-        }
+        scrollToBottom();
+      },
+      onFinish: finish,
+      onError: error,
+    });
+
+    for await (const part of client.fullStream) {
+      if (part.type === "start") {
+        start();
       }
-      scrollToBottom();
-    },
-    onFinish: finish,
-    onError: error,
-  });
-
-  for await (const part of client.fullStream) {
-    if (part.type === "start") {
-      start();
     }
   }
 }

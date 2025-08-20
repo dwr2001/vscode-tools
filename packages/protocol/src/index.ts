@@ -21,10 +21,7 @@ export type ToWebview<C extends string, P = void> = Protocol<"webview", C, P>;
 // message from webview to vscode
 
 export type VscodeChatAbort = ToVscode<"chat.abort">;
-export type VscodeChatStart = ToVscode<
-  "chat.start",
-  Array<UserMessageType | AssistantMessageType | ToolCallMessageType>
->;
+export type VscodeChatInit = ToVscode<"chat.init", Array<UserMessageType | AssistantMessageType | ToolCallMessageType>>;
 
 export type VscodeEnvRequest = ToWebview<"env", string>;
 
@@ -37,10 +34,11 @@ export type VscodeToolCallRequest = ToVscode<
   }
 >;
 
-export type ToVscodeMessage = VscodeChatAbort | VscodeChatStart | VscodeEnvRequest | VscodeToolCallRequest;
+export type ToVscodeMessage = VscodeChatAbort | VscodeChatInit | VscodeEnvRequest | VscodeToolCallRequest;
 
 // message from vscode to webview
 
+export type VscodeChatStart = ToWebview<"chat.start">;
 export type VscodeChatDelta = ToWebview<
   "chat.delta",
   | {
@@ -57,15 +55,6 @@ export type VscodeChatDelta = ToWebview<
 export type VscodeChatError = ToWebview<"chat.error", string>;
 export type VscodeChatFinish = ToWebview<"chat.finish">;
 
-export type VscodeChatStartResponse = ToWebview<
-  "chat.start",
-  { status: "ready" | "reasoning" | "streaming"; index: number }
->;
-export type VscodeChatAbortResponse = ToWebview<
-  "chat.abort",
-  { status: "ready" | "reasoning" | "streaming"; index: number }
->;
-
 export type VscodeEnvResponse = ToWebview<"env", { key: string; value?: unknown }>;
 
 export type VscodeToolCallResponse = ToWebview<
@@ -81,7 +70,6 @@ export type ToWebviewMessage =
   | VscodeChatDelta
   | VscodeChatError
   | VscodeChatFinish
-  | VscodeChatStartResponse
-  | VscodeChatAbortResponse
+  | VscodeChatStart
   | VscodeEnvResponse
   | VscodeToolCallResponse;
