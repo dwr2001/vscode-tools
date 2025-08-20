@@ -6,7 +6,7 @@ export {
   CREATE_FILE,
   type CREATE_FILE_PARAMETERS,
 } from "./tools/create-file";
-export { READ_FILE_SCHEMA, READ_FILE_DESCRIPTION } from "./tools/read-file";
+export { READ_FILE_SCHEMA, READ_FILE_DESCRIPTION, READ_FILE, type READ_FILE_PARAMETERS } from "./tools/read-file";
 export * from "./message";
 
 export type Protocol<T extends "vscode" | "webview", C extends string, P> = {

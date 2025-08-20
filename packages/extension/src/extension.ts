@@ -13,30 +13,25 @@ export function activate(context: ExtensionContext) {
 
     window.registerWebviewViewProvider("vscode-tools.view", new VSCodeToolsViewProvider(context)),
 
-    commands.registerCommand("vscode-tools.createNewFile", async () => {
+    commands.registerCommand("vscode-tools.createFile", async () => {
       try {
-        const args = {
-          filepath: "tmp/created-by-tool.txt",
-          contents: "Hello from vscode-tools test command\n",
-        };
-        const items = await callTool("create_new_file", args);
-        const msg = items?.[0]?.description || "File created";
-        window.showInformationMessage(`CreateNewFile: ${msg}`);
+        const args = '{"filepath": "tmp/created-by-tool.txt", "contents": "Hello from vscode-tools test command\\n"}';
+        const item = await callTool("create_file", args);
+        const msg = item?.description || "File created";
+        window.showInformationMessage(`CreateFile: ${msg}`);
       } catch (err) {
-        console.error("CreateNewFile command failed:", err);
+        console.error("CreateFile command failed:", err);
         const message = err instanceof Error ? err.message : String(err);
         console.error("Error message:", message);
-        window.showErrorMessage(`CreateNewFile failed: ${message}`);
+        window.showErrorMessage(`CreateFile failed: ${message}`);
       }
     }),
 
     commands.registerCommand("vscode-tools.readFile", async () => {
       try {
-        const args = {
-          filepath: "tmp/created-by-tool.txt",
-        };
-        const items = await callTool("read_file", args);
-        const contentPreview = items?.[0]?.content ?? "";
+        const args = '{"filepath": "tmp/created-by-tool.txt"}';
+        const item = await callTool("read_file", args);
+        const contentPreview = item?.content ?? "";
         window.showInformationMessage(`ReadFile ok, length=${contentPreview.length}`);
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);

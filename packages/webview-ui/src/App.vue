@@ -202,33 +202,32 @@ async function send(content: string) {
     model: createDeepSeek({
       apiKey: apiKey.value,
     })("deepseek-chat"),
-    messages:
-      messages.value
-        .map<ModelMessage | undefined>((m) => {
-          switch (m.role) {
-            case "assistant": {
-              return {
-                role: m.role,
-                content: [
-                  ...(m.reasoning ? [{ type: "reasoning", text: m.reasoning }] : []),
-                  ...(m.content ? [{ type: "text", text: m.content }] : []),
-                  ...(m.toolcall
-                    ? Object.entries(m.toolcall).map(([id, value]) => ({
-                        type: "tool-call",
-                        toolCallId: id,
-                        toolName: value.name,
-                        input: value.args,
-                      }))
-                    : []),
-                ] as AssistantContent,
-              };
-            }
-            case "user": {
-              return m;
-            }
+    messages: messages.value
+      .map<ModelMessage | undefined>((m) => {
+        switch (m.role) {
+          case "assistant": {
+            return {
+              role: m.role,
+              content: [
+                ...(m.reasoning ? [{ type: "reasoning", text: m.reasoning }] : []),
+                ...(m.content ? [{ type: "text", text: m.content }] : []),
+                ...(m.toolcall
+                  ? Object.entries(m.toolcall).map(([id, value]) => ({
+                      type: "tool-call",
+                      toolCallId: id,
+                      toolName: value.name,
+                      input: value.args,
+                    }))
+                  : []),
+              ] as AssistantContent,
+            };
           }
-        })
-        .filter((m): m is ModelMessage => m !== undefined),
+          case "user": {
+            return m;
+          }
+        }
+      })
+      .filter((m): m is ModelMessage => m !== undefined),
     tools: {
       [`${CREATE_FILE}`]: {
         description: CREATE_FILE_DESCRIPTION,

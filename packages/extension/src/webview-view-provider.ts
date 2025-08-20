@@ -60,7 +60,11 @@ export class VSCodeToolsViewProvider implements vscode.WebviewViewProvider {
             if (!id || !name) throw new Error("Invalid toolcall payload");
             const { callTool } = await import("./tools/callTool");
             const result = await callTool(name, args);
-            await webviewView.webview.postMessage({ command: "tool-call", payload: { id, name, result: `${result}` } } as VscodeToolCallResponse);
+            console.log("toolcall result:", result);
+            await webviewView.webview.postMessage({
+              command: "tool-call",
+              payload: { id, name, result: `${result}` },
+            } as VscodeToolCallResponse);
           } catch (e) {
             await webviewView.webview.postMessage({ command: "chat.error", payload: String(e) });
           }

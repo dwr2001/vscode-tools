@@ -4,7 +4,7 @@ import * as vscode from "vscode";
 import type z from "zod/v4";
 import type { Tool } from ".";
 
-export const createNewFileImpl: Tool<z.infer<typeof CREATE_FILE_SCHEMA>> = async ({ filepath, contents }) => {
+export const createFileImpl: Tool<z.infer<typeof CREATE_FILE_SCHEMA>> = async ({ filepath, contents }) => {
   const root = vscode.workspace.workspaceFolders?.[0]?.uri;
   if (!root) {
     throw new Error("No workspace folder open to resolve relative path");
@@ -53,15 +53,9 @@ export const createNewFileImpl: Tool<z.infer<typeof CREATE_FILE_SCHEMA>> = async
     }
   })();
 
-  return [
-    {
-      name: path.basename(targetUri.fsPath),
-      description: targetUri.toString(),
-      content: "File created successfuly",
-      uri: {
-        type: "file",
-        value: targetUri.toString(),
-      },
-    },
-  ];
+  return {
+    name: path.basename(targetUri.fsPath),
+    description: targetUri.toString(),
+    content: "File created successfully",
+  };
 };

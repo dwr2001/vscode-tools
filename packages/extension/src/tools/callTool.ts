@@ -1,21 +1,20 @@
 import type { ContextItem } from "../context";
 
-import { CREATE_FILE_SCHEMA, READ_FILE_SCHEMA } from "@vscode-tools/protocol";
-import { createNewFileImpl } from "./createNewFile";
+import { CREATE_FILE_SCHEMA, READ_FILE_SCHEMA, CREATE_FILE, READ_FILE } from "@vscode-tools/protocol";
+import { createFileImpl } from "./createFile";
 import { readFileImpl } from "./readFile";
 
-export async function callTool(functionName: string, args: string): Promise<ContextItem[]> {
+export async function callTool(functionName: string, args: string): Promise<ContextItem> {
   const normalizedArgs = JSON.parse(args);
 
   switch (functionName) {
-    case "read_file": {
+    case READ_FILE: {
       const parsed = READ_FILE_SCHEMA.parse(normalizedArgs);
       return await readFileImpl(parsed);
     }
-    case "create_file":
-    case "create_new_file": {
+    case CREATE_FILE: {
       const parsed = CREATE_FILE_SCHEMA.parse(normalizedArgs);
-      return await createNewFileImpl(parsed);
+      return await createFileImpl(parsed);
     }
     default:
       throw new Error(`Tool "${functionName}" not found`);

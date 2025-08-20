@@ -22,15 +22,9 @@ export const readFileImpl: Tool<z.infer<typeof READ_FILE_SCHEMA>> = async ({ fil
     }
   })();
 
-  return [
-    {
-      name: path.basename(uri.fsPath),
-      description: uri.toString(),
-      content,
-      uri: {
-        type: "file",
-        value: uri.toString(),
-      },
-    },
-  ];
+  return {
+    name: path.basename(uri.fsPath),
+    description: uri.toString(),
+    content,
+  };
 };
