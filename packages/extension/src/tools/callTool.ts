@@ -1,6 +1,6 @@
 import type { ContextItem } from "../context";
 
-import { CREATE_FILE_SCHEMA, READ_FILE_SCHEMA, CREATE_FILE, READ_FILE } from "@vscode-tools/protocol";
+import { CREATE_FILE, CREATE_FILE_SCHEMA, READ_FILE, READ_FILE_SCHEMA } from "@vscode-tools/protocol";
 import { createFileImpl } from "./createFile";
 import { readFileImpl } from "./readFile";
 
