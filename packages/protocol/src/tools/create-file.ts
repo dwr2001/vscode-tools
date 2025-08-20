@@ -7,3 +7,7 @@ export const CREATE_FILE_SCHEMA = z.object({
 
 export const CREATE_FILE_DESCRIPTION =
   "Create a new file. Only use this when a file doesn't exist and should be created";
+
+export type CREATE_FILE_PARAMETERS = z.infer<typeof CREATE_FILE_SCHEMA>;
+
+export const CREATE_FILE = "create_file";

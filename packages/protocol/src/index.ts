@@ -1,5 +1,13 @@
-export { CREATE_FILE_SCHEMA, CREATE_FILE_DESCRIPTION } from "./tools/create-file";
+import type { AssistantMessageType, ToolCallMessageType, UserMessageType } from "./message";
+
+export {
+  CREATE_FILE_SCHEMA,
+  CREATE_FILE_DESCRIPTION,
+  CREATE_FILE,
+  type CREATE_FILE_PARAMETERS,
+} from "./tools/create-file";
 export { READ_FILE_SCHEMA, READ_FILE_DESCRIPTION } from "./tools/read-file";
+export * from "./message";
 
 export type Protocol<T extends "vscode" | "webview", C extends string, P> = {
   to: T;
@@ -13,20 +21,23 @@ export type ToWebview<C extends string, P = void> = Protocol<"webview", C, P>;
 // message from webview to vscode
 
 export type VscodeChatAbort = ToVscode<"chat.abort">;
-export type VscodeChatStart = ToVscode<"chat.start">;
+export type VscodeChatStart = ToVscode<
+  "chat.start",
+  Array<UserMessageType | AssistantMessageType | ToolCallMessageType>
+>;
 
 export type VscodeEnvRequest = ToWebview<"env", string>;
 
-export type VscodeToolcallRequest = ToVscode<
-  "toolcall",
+export type VscodeToolCallRequest = ToVscode<
+  "tool-call",
   {
     id: string;
     name: string;
-    args: unknown;
+    args: string;
   }
 >;
 
-export type ToVscodeMessage = VscodeChatAbort | VscodeChatStart | VscodeEnvRequest | VscodeToolcallRequest;
+export type ToVscodeMessage = VscodeChatAbort | VscodeChatStart | VscodeEnvRequest | VscodeToolCallRequest;
 
 // message from vscode to webview
 
@@ -37,14 +48,10 @@ export type VscodeChatDelta = ToWebview<
       text: string;
     }
   | {
-      type: "tool-input-start";
+      type: "tool-call";
       id: string;
       name: string;
-    }
-  | {
-      type: "tool-input-delta";
-      id: string;
-      delta: string;
+      args: string;
     }
 >;
 export type VscodeChatError = ToWebview<"chat.error", string>;
@@ -52,11 +59,12 @@ export type VscodeChatFinish = ToWebview<"chat.finish">;
 
 export type VscodeEnvResponse = ToWebview<"env", { key: string; value?: unknown }>;
 
-export type VscodeToolcallResponse = ToWebview<
-  "toolcall",
+export type VscodeToolCallResponse = ToWebview<
+  "tool-call",
   {
     id: string;
-    result?: unknown;
+    name: string;
+    result: string;
   }
 >;
 
@@ -65,4 +73,4 @@ export type ToWebviewMessage =
   | VscodeChatError
   | VscodeChatFinish
   | VscodeEnvResponse
-  | VscodeToolcallResponse;
+  | VscodeToolCallResponse;

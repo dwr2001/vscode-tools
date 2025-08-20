@@ -1,15 +1,10 @@
 <script setup lang="ts">
+import { AssistantMessageType, CREATE_FILE, CREATE_FILE_PARAMETERS } from "@vscode-tools/protocol";
 import { marked } from "marked";
 import MessageBubble from "./MessageBubble.vue";
+import CreateFile from "./tools/CreateFile.vue";
 import vscButton from "./ui/vsc-button.vue";
 import vscDetails from "./ui/vsc-details.vue";
-
-export type AssistantMessageType = {
-  role: "assistant";
-  content?: string;
-  reasoning?: string;
-  toolcall?: Record<string, { name: string; args: unknown }>;
-};
 
 const { message } = defineProps<{ message: AssistantMessageType }>();
 
@@ -29,17 +24,16 @@ const emits = defineEmits<{
       <template #summary>
         思考
       </template>
-      <div
-        v-html="marked(message.reasoning)"
-        class="reasoning-content"
-      />
+      <div v-html="marked(message.reasoning)" />
     </vsc-details>
 
     <div v-if="message.content" v-html="marked(message.content)" />
 
     <div class="tool-dialog" v-for="(tool, id) in message.toolcall" :key="id">
-      <span class="tool-name">{{ tool.name }}</span>
-      
+      <span>{{ tool.name }}</span>
+
+      <CreateFile v-if="tool.name === CREATE_FILE" :args="(tool.args as CREATE_FILE_PARAMETERS)" />
+
       <div class="tool-actions">
         <vsc-button 
           @click.once="emits('execute', id, tool.name, tool.args)"
@@ -61,7 +55,7 @@ const emits = defineEmits<{
 <style scoped>
 .tool-dialog {
   border: 1px solid var(--vscode-widget-border);
-  border-radius: 8px;
+  border-radius: 2px;
   margin-bottom: 0.75rem;
   background-color: color-mix(in srgb, var(--vscode-editor-background) 50%, transparent);
   overflow: hidden;

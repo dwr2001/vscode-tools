@@ -1,11 +1,7 @@
 <script setup lang="ts">
+import { UserMessageType } from "@vscode-tools/protocol";
 import { marked } from "marked";
 import MessageBubble from "./MessageBubble.vue";
-
-export type UserMessageType = {
-  role: "user";
-  content: string;
-};
 
 const { message } = defineProps<{ message: UserMessageType }>();
 </script>

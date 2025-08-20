@@ -4,8 +4,8 @@ import { CREATE_FILE_SCHEMA, READ_FILE_SCHEMA } from "@vscode-tools/protocol";
 import { createNewFileImpl } from "./createNewFile";
 import { readFileImpl } from "./readFile";
 
-export async function callTool(functionName: string, args: unknown): Promise<ContextItem[]> {
-  const normalizedArgs = JSON.parse(args as string) as Record<string, unknown>;
+export async function callTool(functionName: string, args: string): Promise<ContextItem[]> {
+  const normalizedArgs = JSON.parse(args);
 
   switch (functionName) {
     case "read_file": {

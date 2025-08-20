@@ -1,11 +1,10 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { TextDecoder } from "node:util";
+import type { ToVscodeMessage, VscodeToolCallResponse } from "@vscode-tools/protocol";
 import * as vscode from "vscode";
 
 export class VSCodeToolsViewProvider implements vscode.WebviewViewProvider {
   private _context: vscode.ExtensionContext;
-  private _chatController?: AbortController;
 
   constructor(context: vscode.ExtensionContext) {
     this._context = context;
@@ -39,40 +38,37 @@ export class VSCodeToolsViewProvider implements vscode.WebviewViewProvider {
       webviewView.webview.html = `<p>${error}</p>`;
     }
 
-    webviewView.webview.onDidReceiveMessage(async (message) => {
-      console.log("received message:", message);
-      try {
-        const { command, payload } = message as { command: string; payload?: unknown };
-        switch (command) {
-          case "env": {
-            console.log("env:", payload);
-            const key = String(payload || "");
-            const config = vscode.workspace.getConfiguration("vscode-tools");
-            const value = config.get<string>(key);
-            console.log("env:", key, value);
-            await webviewView.webview.postMessage({ command: "env", payload: { key, value } });
-            break;
-          }
+    webviewView.webview.onDidReceiveMessage(async (message: ToVscodeMessage) => {
+      const { command, payload } = message;
+      console.debug("VSCode Listener Received message:", command, payload);
 
-          case "toolcall": {
-            try {
-              const { id, name, args } = (payload as { id?: string; name?: string; args?: unknown }) || {};
-              console.log("toolcall:", id, name, args);
-              if (!id || !name) throw new Error("Invalid toolcall payload");
-              const { callTool } = await import("./tools/callTool");
-              const result = await callTool(String(name), (args as Record<string, unknown>) || {});
-              await webviewView.webview.postMessage({ command: "toolcall", payload: { id, result } });
-            } catch (e) {
-              await webviewView.webview.postMessage({ command: "chat.error", payload: String(e) });
-            }
-            break;
-          }
-
-          default:
-            console.warn("Unknown command from webview:", command);
+      switch (command) {
+        case "env": {
+          console.log("env:", payload);
+          const key = String(payload || "");
+          const config = vscode.workspace.getConfiguration("vscode-tools");
+          const value = config.get<string>(key);
+          console.log("env:", key, value);
+          await webviewView.webview.postMessage({ command: "env", payload: { key, value } });
+          break;
         }
-      } catch (error) {
-        console.error("Failed handling message from webview:", error);
+
+        case "tool-call": {
+          try {
+            const { id, name, args } = payload;
+            console.log("toolcall:", id, name, args);
+            if (!id || !name) throw new Error("Invalid toolcall payload");
+            const { callTool } = await import("./tools/callTool");
+            const result = await callTool(name, args);
+            await webviewView.webview.postMessage({ command: "tool-call", payload: { id, name, result: `${result}` } } as VscodeToolCallResponse);
+          } catch (e) {
+            await webviewView.webview.postMessage({ command: "chat.error", payload: String(e) });
+          }
+          break;
+        }
+
+        default:
+          console.warn("Unknown command from webview:", command);
       }
     });
   }
