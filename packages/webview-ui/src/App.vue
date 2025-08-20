@@ -88,6 +88,10 @@ const vscodeListener = async (event: MessageEvent<ToWebviewMessage>) => {
       messages.value.push({ role: "tool-call", ...payload });
       break;
     }
+    case "message": {
+      await send(payload);
+      break;
+    }
     default:
       console.warn("Unknown command from vscode:", command);
   }

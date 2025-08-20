@@ -42,15 +42,15 @@ export type VscodeChatStart = ToWebview<"chat.start">;
 export type VscodeChatDelta = ToWebview<
   "chat.delta",
   | {
-      type: "reasoning-delta" | "text-delta";
-      text: string;
-    }
+    type: "reasoning-delta" | "text-delta";
+    text: string;
+  }
   | {
-      type: "tool-call";
-      id: string;
-      name: string;
-      args: string;
-    }
+    type: "tool-call";
+    id: string;
+    name: string;
+    args: string;
+  }
 >;
 export type VscodeChatError = ToWebview<"chat.error", string>;
 export type VscodeChatFinish = ToWebview<"chat.finish">;
@@ -66,10 +66,13 @@ export type VscodeToolCallResponse = ToWebview<
   }
 >;
 
+export type VscodeMessage = ToWebview<"message", string>;
+
 export type ToWebviewMessage =
   | VscodeChatDelta
   | VscodeChatError
   | VscodeChatFinish
   | VscodeChatStart
   | VscodeEnvResponse
-  | VscodeToolCallResponse;
+  | VscodeToolCallResponse
+  | VscodeMessage;
