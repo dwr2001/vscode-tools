@@ -15,9 +15,6 @@ import * as vscode from "vscode";
 export class VSCodeToolsViewProvider implements vscode.WebviewViewProvider {
   private _context: vscode.ExtensionContext;
   private _webviewView: vscode.WebviewView | undefined;
-  private _chatStatus: "ready" | "reasoning" | "streaming" = "ready";
-  private _currentMessageIndex = -1;
-  private _messages: Array<UserMessageType | AssistantMessageType | ToolCallMessageType> = [];
   private _controller: AbortController | undefined;
 
   constructor(context: vscode.ExtensionContext) {
@@ -70,22 +67,12 @@ export class VSCodeToolsViewProvider implements vscode.WebviewViewProvider {
 
         case "chat.start": {
           console.log("chat.start triggered with messages:", payload);
-          if (this._chatStatus !== "ready") {
-            console.warn("chat.start ignored: streaming already in progress");
-            break;
-          }
-          this._chatStatus = "streaming";
-          this._messages = payload || [];
-          this._currentMessageIndex = this._messages.length;
-          this._messages.push({ role: "assistant" });
-          await this.startAIStream();
+          await this.startAIStream(payload);
           break;
         }
 
         case "chat.abort": {
           console.log("chat.abort triggered");
-          this._chatStatus = "ready";
-          this._currentMessageIndex = -1;
           this._controller?.abort();
           break;
         }
@@ -114,7 +101,7 @@ export class VSCodeToolsViewProvider implements vscode.WebviewViewProvider {
     });
   }
 
-  private async startAIStream() {
+  private async startAIStream(messages: (UserMessageType | AssistantMessageType | ToolCallMessageType)[]) {
     try {
       const config = vscode.workspace.getConfiguration("vscode-tools");
       const apiKey = config.get<string>("apiKey");
@@ -129,7 +116,7 @@ export class VSCodeToolsViewProvider implements vscode.WebviewViewProvider {
         model: createDeepSeek({
           apiKey: apiKey,
         })("deepseek-chat"),
-        messages: this._messages
+        messages: messages
           .map((m): ModelMessage | undefined => {
             if (m.role === "assistant") {
               return {
@@ -162,57 +149,30 @@ export class VSCodeToolsViewProvider implements vscode.WebviewViewProvider {
         },
         abortSignal: this._controller.signal,
         onChunk: async (event) => {
-          const curr = this._messages[this._currentMessageIndex];
-          if (curr?.role === "assistant") {
-            switch (event.chunk.type) {
-              case "reasoning-delta": {
-                curr.reasoning = (curr.reasoning || "") + event.chunk.text;
-                break;
-              }
-              case "text-delta": {
-                curr.content = (curr.content || "") + event.chunk.text;
-                break;
-              }
-              case "tool-call": {
-                curr.toolcall = {
-                  [event.chunk.toolCallId]: {
-                    name: event.chunk.toolName,
-                    args: JSON.stringify(event.chunk.input),
-                  },
-                };
-                break;
-              }
-            }
-            // 规范化发送给前端的 payload，符合协议字段
-            if (event.chunk.type === "tool-call") {
-              await this._webviewView?.webview.postMessage({
-                command: "chat.delta",
-                payload: {
-                  type: "tool-call",
-                  id: event.chunk.toolCallId,
-                  name: event.chunk.toolName,
-                  args: JSON.stringify(event.chunk.input),
-                },
-              });
-            } else if (event.chunk.type === "text-delta" || event.chunk.type === "reasoning-delta") {
-              await this._webviewView?.webview.postMessage({
-                command: "chat.delta",
-                payload: {
-                  type: event.chunk.type,
-                  text: event.chunk.text,
-                },
-              });
-            }
+          if (event.chunk.type === "tool-call") {
+            await this._webviewView?.webview.postMessage({
+              command: "chat.delta",
+              payload: {
+                type: "tool-call",
+                id: event.chunk.toolCallId,
+                name: event.chunk.toolName,
+                args: JSON.stringify(event.chunk.input),
+              },
+            });
+          } else if (event.chunk.type === "text-delta" || event.chunk.type === "reasoning-delta") {
+            await this._webviewView?.webview.postMessage({
+              command: "chat.delta",
+              payload: {
+                type: event.chunk.type,
+                text: event.chunk.text,
+              },
+            });
           }
         },
         onFinish: async () => {
-          this._chatStatus = "ready";
-          this._currentMessageIndex = -1;
           await this._webviewView?.webview.postMessage({ command: "chat.finish" });
         },
         onError: async (error) => {
-          this._chatStatus = "ready";
-          this._currentMessageIndex = -1;
           await this._webviewView?.webview.postMessage({
             command: "chat.error",
             payload: String(error),
@@ -228,8 +188,6 @@ export class VSCodeToolsViewProvider implements vscode.WebviewViewProvider {
       }
     } catch (error) {
       console.error("AI stream error:", error);
-      this._chatStatus = "ready";
-      this._currentMessageIndex = -1;
       await this._webviewView?.webview.postMessage({
         command: "chat.error",
         payload: String(error),
