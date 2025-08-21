@@ -102,18 +102,6 @@ export function activate(context: ExtensionContext) {
           fileExtension = fileName.split(".").pop() || "";
         }
 
-        // 根据文件扩展名确定测试文件扩展名
-        let testFileExtension = "";
-        if (fileExtension === "ts" || fileExtension === "js") {
-          testFileExtension = "test.ts";
-        } else if (fileExtension === "py") {
-          testFileExtension = "test.py";
-        } else if (fileExtension === "java") {
-          testFileExtension = "Test.java";
-        } else {
-          testFileExtension = `test.${fileExtension}`;
-        }
-
         // 读取文件内容
         let fileContent = "";
         if (document) {
@@ -131,7 +119,7 @@ export function activate(context: ExtensionContext) {
         // 构建提示词
         const prompt = `请为以下代码生成完整的单元测试。要求：
 1. 测试覆盖所有主要功能和边界情况
-2. 使用适当的测试框架（如Jest、Mocha、pytest等）
+2. 使用适当的测试框架
 3. 包含详细的测试描述
 4. 测试代码要清晰易懂
 
@@ -141,6 +129,10 @@ ${fileContent}
 \`\`\`
 
 请生成完整的测试文件内容：`;
+
+        // 自动打开并聚焦侧栏到本插件视图
+        await commands.executeCommand("workbench.view.extension.onigiri-container");
+        await commands.executeCommand("vscode-tools.view.focus");
 
         // 向前端发送消息
         await webviewViewProvider.sendFakeMessage(`请为 ${fileName} 生成单元测试`);
