@@ -46,6 +46,12 @@ export type VscodeChatDelta = ToWebview<
     text: string;
   }
   | {
+    type: "tool-call.delta";
+    id: string;
+    name?: string;
+    args?: string;
+  }
+  | {
     type: "tool-call";
     id: string;
     name: string;

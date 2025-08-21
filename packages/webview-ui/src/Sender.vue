@@ -35,7 +35,7 @@ import { nextTick, ref } from "vue";
 import VscButton from "./components/ui/vsc-button.vue";
 
 const { status } = defineProps<{
-  status: "ready" | "reasoning" | "text";
+  status: "ready" | "chatting";
 }>();
 
 const input = ref("");

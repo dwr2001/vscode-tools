@@ -16,7 +16,7 @@ export function activate(context: ExtensionContext) {
       window.showInformationMessage("Hello World from vscode-tools!");
     }),
 
-    window.registerWebviewViewProvider("vscode-tools.view", webviewViewProvider),
+    window.registerWebviewViewProvider("vscode-tools.view", webviewViewProvider, { webviewOptions: { retainContextWhenHidden: true } }),
 
     commands.registerCommand("vscode-tools.createFile", async () => {
       try {
