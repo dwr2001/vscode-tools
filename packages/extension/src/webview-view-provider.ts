@@ -232,21 +232,31 @@ export class VSCodeToolsViewProvider implements vscode.WebviewViewProvider {
     }
   }
 
-  public async generateUnitTest(prompt: string, testFilePath: string): Promise<void> {
+  public async generateUnitTest(prompt: string): Promise<void> {
     try {
-      // 构建消息
       const messages: (UserMessageType | AssistantMessageType | ToolCallMessageType)[] = [
         {
           role: "user",
           content: prompt,
         },
       ];
-      // 启动AI流来生成测试内容
       await this.startAIStream(messages);
-
     } catch (error) {
       console.error("GenerateUnitTest error:", error);
       vscode.window.showErrorMessage(`生成单元测试失败: ${error}`);
+    }
+  }
+
+  public async sendFakeMessage(message: string): Promise<void> {
+    try {
+      if (this._webviewView) {
+        await this._webviewView.webview.postMessage({
+          command: "fake-message",
+          payload: message,
+        });
+      }
+    } catch (error) {
+      console.error("Failed to send fake message:", error);
     }
   }
 }

@@ -1,9 +1,9 @@
-import { type ExtensionContext, commands, window, Uri, TextDocument, workspace } from "vscode";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { type ExtensionContext, type TextDocument, type Uri, commands, window, workspace } from "vscode";
 import { TreeContextProvider } from "./context/tree-context-provider";
 import { callTool } from "./tools/callTool";
 import { VSCodeToolsViewProvider } from "./webview-view-provider";
-import * as path from "path";
-import * as fs from "fs";
 
 export function activate(context: ExtensionContext) {
   console.log('Congratulations, your extension "vscode-tools" is now active!');
@@ -76,13 +76,13 @@ export function activate(context: ExtensionContext) {
         let filePath: string;
         let fileName: string;
         let fileExtension: string;
-        
+
         if (uri) {
           // 从右键菜单调用，使用uri参数
           filePath = uri.fsPath;
           fileName = path.basename(filePath);
-          fileExtension = fileName.split('.').pop() || "";
-          
+          fileExtension = fileName.split(".").pop() || "";
+
           // 尝试打开文档
           try {
             document = await workspace.openTextDocument(uri);
@@ -99,9 +99,9 @@ export function activate(context: ExtensionContext) {
           document = activeEditor.document;
           filePath = document.fileName;
           fileName = document.fileName.split(/[/\\]/).pop() || "";
-          fileExtension = fileName.split('.').pop() || "";
+          fileExtension = fileName.split(".").pop() || "";
         }
-        
+
         // 根据文件扩展名确定测试文件扩展名
         let testFileExtension = "";
         if (fileExtension === "ts" || fileExtension === "js") {
@@ -114,10 +114,6 @@ export function activate(context: ExtensionContext) {
           testFileExtension = `test.${fileExtension}`;
         }
 
-        // 构建测试文件路径
-        const testFileName = fileName.replace(`.${fileExtension}`, `.${testFileExtension}`);
-        const testFilePath = filePath.replace(fileName, testFileName);
-
         // 读取文件内容
         let fileContent = "";
         if (document) {
@@ -125,13 +121,13 @@ export function activate(context: ExtensionContext) {
         } else {
           // 如果无法打开文档，尝试直接读取文件
           try {
-            fileContent = fs.readFileSync(filePath, 'utf8');
+            fileContent = fs.readFileSync(filePath, "utf8");
           } catch (e) {
             window.showErrorMessage("无法读取文件内容");
             return;
           }
         }
-        
+
         // 构建提示词
         const prompt = `请为以下代码生成完整的单元测试。要求：
 1. 测试覆盖所有主要功能和边界情况
@@ -146,8 +142,11 @@ ${fileContent}
 
 请生成完整的测试文件内容：`;
 
+        // 向前端发送消息
+        await webviewViewProvider.sendFakeMessage(`请为 ${fileName} 生成单元测试`);
+
         // 发送消息到webview来生成测试内容
-        await webviewViewProvider.generateUnitTest(prompt, testFilePath);
+        await webviewViewProvider.generateUnitTest(prompt);
       } catch (err) {
         console.error("GenerateUnitTest command failed:", err);
         const message = err instanceof Error ? err.message : String(err);
