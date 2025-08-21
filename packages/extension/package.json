@@ -37,8 +37,29 @@
         "command": "vscode-tools.testTreeContext",
         "title": "Test Tree Context",
         "category": "VSCode Tools"
+      },
+      {
+        "command": "vscode-tools.generateUnitTest",
+        "title": "生成单元测试",
+        "category": "VSCode Tools"
       }
     ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "vscode-tools.generateUnitTest",
+          "group": "1_modification",
+          "when": "resourceExtname == .ts || resourceExtname == .js || resourceExtname == .py || resourceExtname == .java"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "vscode-tools.generateUnitTest",
+          "group": "1_modification",
+          "when": "resourceExtname == .ts || resourceExtname == .js || resourceExtname == .py || resourceExtname == .java"
+        }
+      ]
+    },
     "views": {
       "onigiri-container": [
         {

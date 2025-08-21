@@ -1,17 +1,22 @@
-import { type ExtensionContext, commands, window } from "vscode";
+import { type ExtensionContext, commands, window, Uri, TextDocument, workspace } from "vscode";
 import { TreeContextProvider } from "./context/tree-context-provider";
 import { callTool } from "./tools/callTool";
 import { VSCodeToolsViewProvider } from "./webview-view-provider";
+import * as path from "path";
+import * as fs from "fs";
 
 export function activate(context: ExtensionContext) {
   console.log('Congratulations, your extension "vscode-tools" is now active!');
+
+  // 创建VSCodeToolsViewProvider实例
+  const webviewViewProvider = new VSCodeToolsViewProvider(context);
 
   context.subscriptions.push(
     commands.registerCommand("vscode-tools.helloWorld", () => {
       window.showInformationMessage("Hello World from vscode-tools!");
     }),
 
-    window.registerWebviewViewProvider("vscode-tools.view", new VSCodeToolsViewProvider(context)),
+    window.registerWebviewViewProvider("vscode-tools.view", webviewViewProvider),
 
     commands.registerCommand("vscode-tools.createFile", async () => {
       try {
@@ -61,6 +66,92 @@ export function activate(context: ExtensionContext) {
         console.error("TestTreeContext command failed:", err);
         const message = err instanceof Error ? err.message : String(err);
         window.showErrorMessage(`TestTreeContext failed: ${message}`);
+      }
+    }),
+
+    commands.registerCommand("vscode-tools.generateUnitTest", async (uri?: Uri) => {
+      try {
+        // 获取当前选中的文件或活动编辑器
+        let document: TextDocument | undefined;
+        let filePath: string;
+        let fileName: string;
+        let fileExtension: string;
+        
+        if (uri) {
+          // 从右键菜单调用，使用uri参数
+          filePath = uri.fsPath;
+          fileName = path.basename(filePath);
+          fileExtension = fileName.split('.').pop() || "";
+          
+          // 尝试打开文档
+          try {
+            document = await workspace.openTextDocument(uri);
+          } catch (e) {
+            console.error("Failed to open document:", e);
+          }
+        } else {
+          // 从命令面板调用，使用活动编辑器
+          const activeEditor = window.activeTextEditor;
+          if (!activeEditor) {
+            window.showWarningMessage("请先选择一个文件来生成单元测试");
+            return;
+          }
+          document = activeEditor.document;
+          filePath = document.fileName;
+          fileName = document.fileName.split(/[/\\]/).pop() || "";
+          fileExtension = fileName.split('.').pop() || "";
+        }
+        
+        // 根据文件扩展名确定测试文件扩展名
+        let testFileExtension = "";
+        if (fileExtension === "ts" || fileExtension === "js") {
+          testFileExtension = "test.ts";
+        } else if (fileExtension === "py") {
+          testFileExtension = "test.py";
+        } else if (fileExtension === "java") {
+          testFileExtension = "Test.java";
+        } else {
+          testFileExtension = `test.${fileExtension}`;
+        }
+
+        // 构建测试文件路径
+        const testFileName = fileName.replace(`.${fileExtension}`, `.${testFileExtension}`);
+        const testFilePath = filePath.replace(fileName, testFileName);
+
+        // 读取文件内容
+        let fileContent = "";
+        if (document) {
+          fileContent = document.getText();
+        } else {
+          // 如果无法打开文档，尝试直接读取文件
+          try {
+            fileContent = fs.readFileSync(filePath, 'utf8');
+          } catch (e) {
+            window.showErrorMessage("无法读取文件内容");
+            return;
+          }
+        }
+        
+        // 构建提示词
+        const prompt = `请为以下代码生成完整的单元测试。要求：
+1. 测试覆盖所有主要功能和边界情况
+2. 使用适当的测试框架（如Jest、Mocha、pytest等）
+3. 包含详细的测试描述
+4. 测试代码要清晰易懂
+
+代码内容：
+\`\`\`${fileExtension}
+${fileContent}
+\`\`\`
+
+请生成完整的测试文件内容：`;
+
+        // 发送消息到webview来生成测试内容
+        await webviewViewProvider.generateUnitTest(prompt, testFilePath);
+      } catch (err) {
+        console.error("GenerateUnitTest command failed:", err);
+        const message = err instanceof Error ? err.message : String(err);
+        window.showErrorMessage(`GenerateUnitTest failed: ${message}`);
       }
     }),
   );

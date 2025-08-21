@@ -66,7 +66,7 @@ export type VscodeToolCallResponse = ToWebview<
   }
 >;
 
-export type VscodeMessage = ToWebview<"message", string>;
+export type VscodeFakeMessage = ToWebview<"fake-message", string>;
 
 export type ToWebviewMessage =
   | VscodeChatDelta
@@ -75,4 +75,4 @@ export type ToWebviewMessage =
   | VscodeChatStart
   | VscodeEnvResponse
   | VscodeToolCallResponse
-  | VscodeMessage;
+  | VscodeFakeMessage;
