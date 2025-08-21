@@ -12,7 +12,7 @@
   </main>
   <footer style="flex: 0 0 auto;">
     <button class="clear-history-button" style="width: 100%;" @click="messages = []">清除历史</button>
-    <Sender :status="status === 'streaming' ? 'text' : status" @submit="send" @cancel="cancel" />
+    <Sender :status @submit="send" @cancel="cancel" />
   </footer>
 </template>
 
@@ -88,8 +88,10 @@ const vscodeListener = async (event: MessageEvent<ToWebviewMessage>) => {
       messages.value.push({ role: "tool-call", ...payload });
       break;
     }
-    case "message": {
-      await send(payload);
+    case "fake-message": {
+      messages.value.push({ role: "user", content: payload });
+
+      scrollToBottom();
       break;
     }
     default:
@@ -116,11 +118,12 @@ onUnmounted(() => {
 
 // messages and status - Updated to use AI SDK compatible types
 const messages = ref<(UserMessageType | AssistantMessageType | ToolCallMessageType)[]>([]);
-const status = ref<"ready" | "reasoning" | "streaming">("ready");
+const status = ref<"ready" | "chatting">("ready");
 const index = ref(-1);
 
 const start = () => {
   index.value = messages.value.push({ role: "assistant" }) - 1;
+  status.value = "chatting";
   scrollToBottom();
 };
 
