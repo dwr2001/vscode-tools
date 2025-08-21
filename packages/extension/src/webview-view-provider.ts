@@ -11,6 +11,7 @@ import type {
 import { CREATE_FILE, CREATE_FILE_DESCRIPTION, CREATE_FILE_SCHEMA } from "@vscode-tools/protocol";
 import { type AssistantContent, type ModelMessage, streamText } from "ai";
 import * as vscode from "vscode";
+import { TreeContextProvider } from "./context/tree-context-provider";
 
 export class VSCodeToolsViewProvider implements vscode.WebviewViewProvider {
   private _context: vscode.ExtensionContext;
@@ -111,36 +112,46 @@ export class VSCodeToolsViewProvider implements vscode.WebviewViewProvider {
       }
 
       this._controller = new AbortController();
-
+      const contextSuffix = await this.buildContextSuffix();
       const client = streamText({
         model: createDeepSeek({
           apiKey: apiKey,
         })("deepseek-chat"),
-        messages: messages
-          .map((m): ModelMessage | undefined => {
-            if (m.role === "assistant") {
-              return {
-                role: m.role,
-                content: [
-                  ...(m.reasoning ? [{ type: "reasoning" as const, text: m.reasoning }] : []),
-                  ...(m.content ? [{ type: "text" as const, text: m.content }] : []),
-                  ...(m.toolcall
-                    ? Object.entries(m.toolcall).map(([id, value]) => ({
-                        type: "tool-call" as const,
-                        toolCallId: id,
-                        toolName: value.name,
-                        input: value.args,
-                      }))
-                    : []),
-                ] as AssistantContent,
-              };
-            }
-            if (m.role === "user") {
-              return m as ModelMessage;
-            }
-            return undefined;
-          })
-          .filter((m): m is ModelMessage => m !== undefined),
+        messages: [
+          ...messages
+            .map((m): ModelMessage | undefined => {
+              if (m.role === "assistant") {
+                return {
+                  role: m.role,
+                  content: [
+                    ...(m.reasoning ? [{ type: "reasoning" as const, text: m.reasoning }] : []),
+                    ...(m.content ? [{ type: "text" as const, text: m.content }] : []),
+                    ...(m.toolcall
+                      ? Object.entries(m.toolcall).map(([id, value]) => ({
+                          type: "tool-call" as const,
+                          toolCallId: id,
+                          toolName: value.name,
+                          input: value.args,
+                        }))
+                      : []),
+                  ] as AssistantContent,
+                };
+              }
+              if (m.role === "user") {
+                return m as ModelMessage;
+              }
+              return undefined;
+            })
+            .filter((m): m is ModelMessage => m !== undefined),
+          ...(contextSuffix
+            ? [
+                {
+                  role: "system" as const,
+                  content: contextSuffix,
+                },
+              ]
+            : []),
+        ],
         tools: {
           [`${CREATE_FILE}`]: {
             description: CREATE_FILE_DESCRIPTION,
@@ -194,6 +205,30 @@ export class VSCodeToolsViewProvider implements vscode.WebviewViewProvider {
         command: "chat.error",
         payload: String(error),
       });
+    }
+  }
+
+  private async buildContextSuffix(): Promise<string | undefined> {
+    try {
+      const folders = vscode.workspace.workspaceFolders;
+      if (!folders || folders.length === 0) return undefined;
+      const root = folders[0].uri.fsPath;
+      const projectName = path.basename(root);
+
+      const treeProvider = new TreeContextProvider();
+      const items = await treeProvider.contexts({});
+      const treeBlock = items[0]?.content ?? "";
+
+      const suffix = [
+        "\n\n[context]",
+        `project name: ${projectName}`,
+        `workspace: ${root}`,
+        "file tree:",
+        treeBlock,
+      ].join("\n");
+      return suffix;
+    } catch {
+      return undefined;
     }
   }
 }
