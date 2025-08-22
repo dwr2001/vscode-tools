@@ -161,18 +161,6 @@ export class VSCodeToolsViewProvider implements vscode.WebviewViewProvider {
         abortSignal: this._controller.signal,
         onChunk: async (event) => {
           if (event.chunk.type === "tool-call") {
-            // 发送工具调用状态更新
-            await this._webviewView?.webview.postMessage({
-              command: "chat.delta",
-              payload: {
-                type: "tool-call.delta",
-                id: event.chunk.toolCallId,
-                name: event.chunk.toolName,
-                args: JSON.stringify(event.chunk.input),
-              },
-            });
-            
-            // 同时发送完整的工具调用信息
             await this._webviewView?.webview.postMessage({
               command: "chat.delta",
               payload: {
@@ -183,23 +171,21 @@ export class VSCodeToolsViewProvider implements vscode.WebviewViewProvider {
               },
             });
           } else if (event.chunk.type === "text-delta" || event.chunk.type === "reasoning-delta") {
-            // 为每个文本块发送状态更新
-            await this._webviewView?.webview.postMessage({
-              command: "chat.delta",
-              payload: {
-                type: "tool-call.delta",
-                id: "text-streaming",
-                name: "text-generation",
-                args: "正在生成内容...",
-              },
-            });
-            
-            // 发送实际的文本内容
             await this._webviewView?.webview.postMessage({
               command: "chat.delta",
               payload: {
                 type: event.chunk.type,
                 text: event.chunk.text,
+              },
+            });
+          } else if (event.chunk.type === "tool-input-start" || event.chunk.type === "tool-input-delta") {
+            await this._webviewView?.webview.postMessage({
+              command: "chat.delta",
+              payload: {
+                type: "tool-call-delta",
+                id: event.chunk.id,
+                name: "toolName" in event.chunk ? event.chunk.toolName : undefined,
+                args: "delta" in event.chunk ? JSON.stringify(event.chunk.delta) : undefined,
               },
             });
           }
@@ -220,14 +206,6 @@ export class VSCodeToolsViewProvider implements vscode.WebviewViewProvider {
         if (part.type === "start") {
           await this._webviewView?.webview.postMessage({
             command: "chat.start",
-          });
-        }
-        if (part.type === "tool-call") {
-          await this._webviewView?.webview.postMessage({
-            type: "tool-call.delta", 
-            id: part.toolCallId,
-            name: part.toolName,
-            args: JSON.stringify(part.input),
           });
         }
       }

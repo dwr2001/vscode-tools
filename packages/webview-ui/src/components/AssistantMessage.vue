@@ -32,27 +32,27 @@ const emits = defineEmits<{
     <div class="tool-dialog" v-for="(tool, id) in message.toolcall" :key="id">
       <span>{{ tool.name }}</span>
 
-      <CreateFile v-if="tool.name === CREATE_FILE" :args="(tool.args as CREATE_FILE_PARAMETERS)" />
-
       <!-- 显示处理状态 -->
       <div v-if="tool.status === 'processing'" class="processing-status">
         <i class="codicon codicon-loading codicon-modifier-spin" />
         <span>正在处理...</span>
       </div>
-
-      <div class="tool-actions" v-if="tool.status !== 'processing'">
-        <vsc-button 
-          @click.once="emits('execute', id, tool.name, tool.args)"
-        >
-          <i class="codicon codicon-play" />
-        </vsc-button>
-        
-        <vsc-button 
-          @click="emits('cancel', id)"
-        >
-          <i class="codicon codicon-stop" />
-        </vsc-button>
-      </div>
+      <template v-else>
+        <CreateFile v-if="tool.name === CREATE_FILE" :args="(JSON.parse(tool.args) as CREATE_FILE_PARAMETERS)" />
+        <div class="tool-actions" v-if="tool.status !== 'processing'">
+          <vsc-button 
+            @click.once="emits('execute', id, tool.name, tool.args)"
+          >
+            <i class="codicon codicon-play" />
+          </vsc-button>
+          
+          <vsc-button 
+            @click="emits('cancel', id)"
+          >
+            <i class="codicon codicon-stop" />
+          </vsc-button>
+        </div>
+      </template>
     </div>
   </MessageBubble>
 </template>

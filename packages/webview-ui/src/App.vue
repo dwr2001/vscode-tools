@@ -129,7 +129,7 @@ const start = () => {
 
 const chunk = (chunk: VscodeChatDelta["payload"]) => {
   const curr = messages.value[index.value];
-  
+
   // 安全检查：确保当前消息存在且是assistant类型
   if (!curr || curr.role !== "assistant") {
     console.warn("Invalid current message for chunk:", chunk);
@@ -153,7 +153,7 @@ const chunk = (chunk: VscodeChatDelta["payload"]) => {
       };
       break;
     }
-    case "tool-call.delta": {
+    case "tool-call-delta": {
       // 处理工具调用状态更新，用于显示转圈效果
       if (!curr.toolcall) {
         curr.toolcall = {};

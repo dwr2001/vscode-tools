@@ -7,7 +7,7 @@ export type AssistantMessageType = {
   role: "assistant";
   content?: string;
   reasoning?: string;
-  toolcall?: Record<string, { name: string; args: unknown; status?: string }>;
+  toolcall?: Record<string, { name: string; args: string; status?: string }>;
 };
 
 export type ToolCallMessageType = {
