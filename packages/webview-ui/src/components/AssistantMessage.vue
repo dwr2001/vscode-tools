@@ -34,7 +34,13 @@ const emits = defineEmits<{
 
       <CreateFile v-if="tool.name === CREATE_FILE" :args="(tool.args as CREATE_FILE_PARAMETERS)" />
 
-      <div class="tool-actions">
+      <!-- 显示处理状态 -->
+      <div v-if="tool.status === 'processing'" class="processing-status">
+        <i class="codicon codicon-loading codicon-modifier-spin" />
+        <span>正在处理...</span>
+      </div>
+
+      <div class="tool-actions" v-if="tool.status !== 'processing'">
         <vsc-button 
           @click.once="emits('execute', id, tool.name, tool.args)"
         >
@@ -66,5 +72,19 @@ const emits = defineEmits<{
   gap: 0.5rem;
   padding: 0.75rem;
   background-color: color-mix(in srgb, var(--vscode-editor-background) 60%, transparent);
+}
+
+.processing-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background-color: color-mix(in srgb, var(--vscode-editor-background) 60%, transparent);
+  color: var(--vscode-descriptionForeground);
+  font-style: italic;
+}
+
+.processing-status i {
+  color: var(--vscode-progressBar-background);
 }
 </style>

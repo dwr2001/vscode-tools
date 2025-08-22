@@ -129,7 +129,12 @@ const start = () => {
 
 const chunk = (chunk: VscodeChatDelta["payload"]) => {
   const curr = messages.value[index.value];
-  assert(curr.role === "assistant", "Current message must be an assistant message");
+  
+  // 安全检查：确保当前消息存在且是assistant类型
+  if (!curr || curr.role !== "assistant") {
+    console.warn("Invalid current message for chunk:", chunk);
+    return;
+  }
 
   switch (chunk.type) {
     case "reasoning-delta": {
@@ -145,6 +150,18 @@ const chunk = (chunk: VscodeChatDelta["payload"]) => {
         [chunk.id]: {
           ...chunk,
         },
+      };
+      break;
+    }
+    case "tool-call.delta": {
+      // 处理工具调用状态更新，用于显示转圈效果
+      if (!curr.toolcall) {
+        curr.toolcall = {};
+      }
+      curr.toolcall[chunk.id] = {
+        name: chunk.name || "processing",
+        args: chunk.args || "正在处理...",
+        status: "processing", // 添加状态标识
       };
       break;
     }
