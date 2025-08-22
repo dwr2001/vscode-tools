@@ -9,14 +9,13 @@ export {
 export { READ_FILE_SCHEMA, READ_FILE_DESCRIPTION, READ_FILE, type READ_FILE_PARAMETERS } from "./tools/read-file";
 export * from "./message";
 
-export type Protocol<T extends "vscode" | "webview", C extends string, P> = {
-  to: T;
+export type Protocol<C extends string, P> = {
   command: C;
   payload: P;
 };
 
-export type ToVscode<C extends string, P = void> = Protocol<"vscode", C, P>;
-export type ToWebview<C extends string, P = void> = Protocol<"webview", C, P>;
+export type ToVscode<C extends string, P = void> = Protocol<C, P>;
+export type ToWebview<C extends string, P = void> = Protocol<C, P>;
 
 // message from webview to vscode
 
@@ -25,6 +24,9 @@ export type VscodeChatInit = ToVscode<"chat.init", Array<UserMessageType | Assis
 
 export type VscodeEnvRequest = ToWebview<"env", string>;
 
+/**
+ * @deprecated
+ */
 export type VscodeToolCallRequest = ToVscode<
   "tool-call",
   {
@@ -82,3 +84,22 @@ export type ToWebviewMessage =
   | VscodeEnvResponse
   | VscodeToolCallResponse
   | VscodeFakeMessage;
+
+// Bidirectional communication message
+
+export type ToolCall = Protocol<
+  "tool-call",
+  {
+    id: string;
+    name: string;
+    args: string;
+  }
+>;
+export type ToolCallResult = Protocol<
+  "tool-call-result",
+  {
+    id: string;
+    name: string;
+    result: string;
+  }
+>;
