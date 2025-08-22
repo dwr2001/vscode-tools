@@ -119,8 +119,8 @@ export function activate(context: ExtensionContext) {
         }
 
         // 构建提示词
-        const prompt = `请为以下代码生成完整的单元测试。要求：
-1. 测试覆盖所有主要功能和边界情况
+        const prompt = `请为以下代码生成适量的单元测试。要求：
+1. 测试覆盖基本的功能
 2. 使用适当的测试框架
 3. 包含详细的测试描述
 4. 测试代码要清晰易懂
