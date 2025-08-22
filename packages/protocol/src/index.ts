@@ -9,25 +9,22 @@ export {
 export { READ_FILE_SCHEMA, READ_FILE_DESCRIPTION, READ_FILE, type READ_FILE_PARAMETERS } from "./tools/read-file";
 export * from "./message";
 
-export type Protocol<C extends string, P> = {
+export type Protocol<T extends "vscode" | "webview", C extends string, P> = {
+  to: T;
   command: C;
   payload: P;
 };
 
-export type ToVscode<C extends string, P = void> = Protocol<C, P>;
-export type ToWebview<C extends string, P = void> = Protocol<C, P>;
+/// message from webview to vscode
 
-// message from webview to vscode
+export type ToVscode<C extends string, P = void> = Protocol<"vscode", C, P>;
 
 export type VscodeChatAbort = ToVscode<"chat.abort">;
 export type VscodeChatInit = ToVscode<"chat.init", Array<UserMessageType | AssistantMessageType | ToolCallMessageType>>;
 
-export type VscodeEnvRequest = ToWebview<"env", string>;
+export type VscodeEnvRequest = ToVscode<"env", string>;
 
-/**
- * @deprecated
- */
-export type VscodeToolCallRequest = ToVscode<
+export type VscodeToolCall = ToVscode<
   "tool-call",
   {
     id: string;
@@ -36,9 +33,11 @@ export type VscodeToolCallRequest = ToVscode<
   }
 >;
 
-export type ToVscodeMessage = VscodeChatAbort | VscodeChatInit | VscodeEnvRequest | VscodeToolCallRequest;
+export type ToVscodeMessage = VscodeChatAbort | VscodeChatInit | VscodeEnvRequest | VscodeToolCall;
 
-// message from vscode to webview
+/// message from vscode to webview
+
+export type ToWebview<C extends string, P = void> = Protocol<"webview", C, P>;
 
 export type VscodeChatStart = ToWebview<"chat.start">;
 export type VscodeChatDelta = ToWebview<
@@ -65,8 +64,8 @@ export type VscodeChatFinish = ToWebview<"chat.finish">;
 
 export type VscodeEnvResponse = ToWebview<"env", { key: string; value?: unknown }>;
 
-export type VscodeToolCallResponse = ToWebview<
-  "tool-call",
+export type VscodeToolCallResult = ToWebview<
+  "tool-call-result",
   {
     id: string;
     name: string;
@@ -82,24 +81,5 @@ export type ToWebviewMessage =
   | VscodeChatFinish
   | VscodeChatStart
   | VscodeEnvResponse
-  | VscodeToolCallResponse
-  | VscodeFakeMessage;
-
-// Bidirectional communication message
-
-export type VscodeToolCall = Protocol<
-  "tool-call",
-  {
-    id: string;
-    name: string;
-    args: string;
-  }
->;
-export type VscodeToolCallResult = Protocol<
-  "tool-call-result",
-  {
-    id: string;
-    name: string;
-    result: string;
-  }
->;
+  | VscodeFakeMessage
+  | VscodeToolCallResult;

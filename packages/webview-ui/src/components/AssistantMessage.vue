@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { AssistantMessageType, CREATE_FILE, CREATE_FILE_PARAMETERS } from "@vscode-tools/protocol";
+import { AssistantMessageType, CREATE_FILE, CREATE_FILE_PARAMETERS, VscodeToolCall } from "@vscode-tools/protocol";
 import { marked } from "marked";
 import MessageBubble from "./MessageBubble.vue";
 import CreateFile from "./tools/CreateFile.vue";
@@ -9,7 +9,7 @@ import vscDetails from "./ui/vsc-details.vue";
 const { message } = defineProps<{ message: AssistantMessageType }>();
 
 const emits = defineEmits<{
-  (e: "execute", id: string, name: string, args: unknown): void;
+  (e: "execute", args: VscodeToolCall["payload"]): void;
   (e: "cancel", id: string): void;
   (e: "retry", id: string): void;
 }>();
@@ -41,7 +41,7 @@ const emits = defineEmits<{
         <CreateFile v-if="tool.name === CREATE_FILE" :args="(JSON.parse(tool.args) as CREATE_FILE_PARAMETERS)" />
         <div class="tool-actions" v-if="tool.status !== 'processing'">
           <vsc-button 
-            @click.once="emits('execute', id, tool.name, tool.args)"
+            @click.once="emits('execute', { id, ...tool })"
           >
             <i class="codicon codicon-play" />
           </vsc-button>

@@ -7,12 +7,12 @@
     ">
     <template v-for="(message, i) in messages" :key="i">
       <UserMessage v-if="message.role === 'user'" :message="message" />
-      <AssistantMessage v-else-if="message.role === 'assistant'" :message="message" @execute="call" />
+      <AssistantMessage v-else-if="message.role === 'assistant'" :message="message" @execute="tool$call" />
     </template>
   </main>
   <footer style="flex: 0 0 auto;">
     <button class="clear-history-button" style="width: 100%;" @click="messages = []">清除历史</button>
-    <Sender :status @submit="send" @cancel="cancel" />
+    <Sender :status @submit="send" @cancel="abort" />
   </footer>
 </template>
 
@@ -27,8 +27,13 @@ import {
   UserMessageType,
   VscodeChatAbort,
   VscodeChatDelta,
+  VscodeChatError,
+  VscodeChatFinish,
+  VscodeChatInit,
+  VscodeChatStart,
   VscodeEnvRequest,
-  VscodeToolCallRequest,
+  VscodeToolCall,
+  VscodeToolCallResult,
 } from "@vscode-tools/protocol";
 import type { WebviewApi } from "vscode-webview";
 import { Ref, nextTick, onMounted, onUnmounted, ref, unref, useTemplateRef } from "vue";
@@ -69,7 +74,7 @@ const vscodeListener = async (event: MessageEvent<ToWebviewMessage>) => {
       break;
     }
     case "chat.start": {
-      start();
+      start(payload);
       break;
     }
     case "chat.delta": {
@@ -77,15 +82,15 @@ const vscodeListener = async (event: MessageEvent<ToWebviewMessage>) => {
       break;
     }
     case "chat.finish": {
-      finish();
+      finish(payload);
       break;
     }
     case "chat.error": {
       error(payload);
       break;
     }
-    case "tool-call": {
-      messages.value.push({ role: "tool-call", ...payload });
+    case "tool-call-result": {
+      await tool$call$result(payload);
       break;
     }
     case "fake-message": {
@@ -103,10 +108,7 @@ onMounted(() => {
   console.log("mount vscode === undefined", vscode === undefined);
   if (typeof vscode !== "undefined") {
     window.addEventListener("message", vscodeListener);
-    vscode.postMessage({
-      command: "env",
-      payload: "apiKey",
-    } as VscodeEnvRequest);
+    vscode.postMessage({ to: "vscode", command: "env", payload: "apiKey" } as VscodeEnvRequest);
   }
 });
 
@@ -120,99 +122,17 @@ onUnmounted(() => {
 const messages = ref<(UserMessageType | AssistantMessageType | ToolCallMessageType)[]>([]);
 const status = ref<"ready" | "chatting">("ready");
 const index = ref(-1);
-
-const start = () => {
-  index.value = messages.value.push({ role: "assistant" }) - 1;
-  status.value = "chatting";
-  scrollToBottom();
-};
-
-const chunk = (chunk: VscodeChatDelta["payload"]) => {
-  const curr = messages.value[index.value];
-
-  // 安全检查：确保当前消息存在且是assistant类型
-  if (!curr || curr.role !== "assistant") {
-    console.warn("Invalid current message for chunk:", chunk);
-    return;
-  }
-
-  switch (chunk.type) {
-    case "reasoning-delta": {
-      curr.reasoning = (curr.reasoning || "") + chunk.text;
-      break;
-    }
-    case "text-delta": {
-      curr.content = (curr.content || "") + chunk.text;
-      break;
-    }
-    case "tool-call": {
-      curr.toolcall = {
-        [chunk.id]: {
-          ...chunk,
-        },
-      };
-      break;
-    }
-    case "tool-call-delta": {
-      // 处理工具调用状态更新，用于显示转圈效果
-      if (!curr.toolcall) {
-        curr.toolcall = {};
-      }
-      curr.toolcall[chunk.id] = {
-        name: chunk.name || "processing",
-        args: chunk.args || "正在处理...",
-        status: "processing", // 添加状态标识
-      };
-      break;
-    }
-  }
-  scrollToBottom();
-};
-
-const finish = () => {
-  status.value = "ready";
-  index.value = -1;
-};
-
-const error = (error: unknown) => {
-  const content = `\`\`\`json
-${JSON.stringify(error, null, 2)}
-\`\`\``;
-
-  const last = messages.value[index.value];
-  if (last.role === "assistant") {
-    last.content = content;
-  }
-
-  status.value = "ready";
-  index.value = -1;
-};
-
-const call = (id: string, name: string, args: unknown) => {
-  console.log(id, "Calling tool:", name, "with args:", args);
-  if (vscode !== undefined) {
-    vscode.postMessage({
-      command: "tool-call",
-      payload: { id, name, args },
-    } as VscodeToolCallRequest);
-    console.log("call finish");
-  } else {
-    // Handle tool call in webview
-  }
-};
-
 const controller: Ref<AbortController | undefined> = ref(undefined);
 
-async function cancel() {
-  if (vscode !== undefined) {
-    vscode.postMessage({ command: "chat.abort" } as VscodeChatAbort);
-  } else {
-    controller.value?.abort();
-  }
-  status.value = "ready";
-}
+const tool$call$result = async (payload: VscodeToolCallResult["payload"]) => {
+  messages.value.push({ role: "tool-call", ...payload });
 
-async function send(content: string) {
+  scrollToBottom();
+
+  await init(JSON.parse(JSON.stringify(unref(messages))));
+};
+
+const send = async (content: string) => {
   if (content.trim() === "" || status.value !== "ready") {
     console.error("unready or empty content");
     return;
@@ -222,11 +142,79 @@ async function send(content: string) {
 
   scrollToBottom();
 
+  await init(JSON.parse(JSON.stringify(unref(messages))));
+};
+
+// post message from vscode to webview
+
+const start = (_payload: VscodeChatStart["payload"]) => {
+  index.value = messages.value.push({ role: "assistant" }) - 1;
+  status.value = "chatting";
+  scrollToBottom();
+};
+
+const chunk = (payload: VscodeChatDelta["payload"]) => {
+  const curr = messages.value[index.value];
+
+  // 安全检查：确保当前消息存在且是assistant类型
+  if (!curr || curr.role !== "assistant") {
+    console.warn("Invalid current message for chunk:", payload);
+    return;
+  }
+
+  switch (payload.type) {
+    case "reasoning-delta": {
+      curr.reasoning = (curr.reasoning || "") + payload.text;
+      break;
+    }
+    case "text-delta": {
+      curr.content = (curr.content || "") + payload.text;
+      break;
+    }
+    case "tool-call": {
+      curr.toolcall = {
+        [payload.id]: {
+          ...payload,
+        },
+      };
+      break;
+    }
+    case "tool-call-delta": {
+      // 处理工具调用状态更新，用于显示转圈效果
+      if (!curr.toolcall) {
+        curr.toolcall = {};
+      }
+      curr.toolcall[payload.id] = {
+        name: payload.name || "processing",
+        args: payload.args || "正在处理...",
+        status: "processing", // 添加状态标识
+      };
+      break;
+    }
+  }
+  scrollToBottom();
+};
+
+const finish = (_payload: VscodeChatFinish["payload"]) => {
+  status.value = "ready";
+  index.value = -1;
+};
+
+const error = (payload: VscodeChatError["payload"]) => {
+  const last = messages.value[index.value];
+  if (last.role === "assistant") {
+    last.content = payload;
+  }
+
+  status.value = "ready";
+  index.value = -1;
+};
+
+// post message from webview to vscode
+
+const init = async (payload: VscodeChatInit["payload"]) => {
   if (vscode !== undefined) {
-    vscode.postMessage({
-      command: "chat.init",
-      payload: JSON.parse(JSON.stringify(unref(messages))),
-    });
+    vscode.postMessage({ to: "vscode", command: "chat.init", payload } as VscodeChatInit);
   } else {
     controller.value = new AbortController();
     const client = streamText({
@@ -292,8 +280,8 @@ async function send(content: string) {
         }
         scrollToBottom();
       },
-      onFinish: finish,
-      onError: error,
+      onFinish: () => finish(),
+      onError: (e) => error(String(e.error)),
     });
 
     for await (const part of client.fullStream) {
@@ -302,7 +290,24 @@ async function send(content: string) {
       }
     }
   }
-}
+};
+
+const abort = (payload: VscodeChatAbort["payload"]) => {
+  if (vscode !== undefined) {
+    vscode.postMessage({ to: "vscode", command: "chat.abort", payload } as VscodeChatAbort);
+  } else {
+    controller.value?.abort();
+  }
+  status.value = "ready";
+};
+
+const tool$call = (payload: VscodeToolCall["payload"]) => {
+  if (vscode !== undefined) {
+    vscode.postMessage({ to: "vscode", command: "tool-call", payload } as VscodeToolCall);
+  } else {
+    // nothing to do
+  }
+};
 
 // scroll to bottom helper
 

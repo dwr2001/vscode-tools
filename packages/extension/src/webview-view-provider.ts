@@ -6,7 +6,13 @@ import type {
   ToVscodeMessage,
   ToolCallMessageType,
   UserMessageType,
-  VscodeToolCallResponse,
+  VscodeChatDelta,
+  VscodeChatError,
+  VscodeChatFinish,
+  VscodeChatStart,
+  VscodeEnvResponse,
+  VscodeFakeMessage,
+  VscodeToolCallResult,
 } from "@vscode-tools/protocol";
 import { CREATE_FILE, CREATE_FILE_DESCRIPTION, CREATE_FILE_SCHEMA } from "@vscode-tools/protocol";
 import { type AssistantContent, type ModelMessage, streamText } from "ai";
@@ -62,7 +68,11 @@ export class VSCodeToolsViewProvider implements vscode.WebviewViewProvider {
           const config = vscode.workspace.getConfiguration("vscode-tools");
           const value = config.get<string>(key);
           console.log("env:", key, value);
-          await webviewView.webview.postMessage({ command: "env", payload: { key, value } });
+          await webviewView.webview.postMessage({
+            to: "webview",
+            command: "env",
+            payload: { key, value },
+          } as VscodeEnvResponse);
           break;
         }
 
@@ -87,11 +97,16 @@ export class VSCodeToolsViewProvider implements vscode.WebviewViewProvider {
             const result = await callTool(name, args);
             console.log("toolcall result:", result);
             await webviewView.webview.postMessage({
-              command: "tool-call",
+              to: "webview",
+              command: "tool-call-result",
               payload: { id, name, result: `${result}` },
-            } as VscodeToolCallResponse);
+            } as VscodeToolCallResult);
           } catch (e) {
-            await webviewView.webview.postMessage({ command: "chat.error", payload: String(e) });
+            await webviewView.webview.postMessage({
+              to: "webview",
+              command: "chat.error",
+              payload: String(e),
+            } as VscodeChatError);
           }
           break;
         }
@@ -162,6 +177,7 @@ export class VSCodeToolsViewProvider implements vscode.WebviewViewProvider {
         onChunk: async (event) => {
           if (event.chunk.type === "tool-call") {
             await this._webviewView?.webview.postMessage({
+              to: "webview",
               command: "chat.delta",
               payload: {
                 type: "tool-call",
@@ -169,17 +185,19 @@ export class VSCodeToolsViewProvider implements vscode.WebviewViewProvider {
                 name: event.chunk.toolName,
                 args: JSON.stringify(event.chunk.input),
               },
-            });
+            } as VscodeChatDelta);
           } else if (event.chunk.type === "text-delta" || event.chunk.type === "reasoning-delta") {
             await this._webviewView?.webview.postMessage({
+              to: "webview",
               command: "chat.delta",
               payload: {
                 type: event.chunk.type,
                 text: event.chunk.text,
               },
-            });
+            } as VscodeChatDelta);
           } else if (event.chunk.type === "tool-input-start" || event.chunk.type === "tool-input-delta") {
             await this._webviewView?.webview.postMessage({
+              to: "webview",
               command: "chat.delta",
               payload: {
                 type: "tool-call-delta",
@@ -187,17 +205,18 @@ export class VSCodeToolsViewProvider implements vscode.WebviewViewProvider {
                 name: "toolName" in event.chunk ? event.chunk.toolName : undefined,
                 args: "delta" in event.chunk ? JSON.stringify(event.chunk.delta) : undefined,
               },
-            });
+            } as VscodeChatDelta);
           }
         },
         onFinish: async () => {
-          await this._webviewView?.webview.postMessage({ command: "chat.finish" });
+          await this._webviewView?.webview.postMessage({ to: "webview", command: "chat.finish" } as VscodeChatFinish);
         },
         onError: async (error) => {
           await this._webviewView?.webview.postMessage({
+            to: "webview",
             command: "chat.error",
             payload: String(error),
-          });
+          } as VscodeChatError);
         },
       });
 
@@ -205,16 +224,18 @@ export class VSCodeToolsViewProvider implements vscode.WebviewViewProvider {
       for await (const part of client.fullStream) {
         if (part.type === "start") {
           await this._webviewView?.webview.postMessage({
+            to: "webview",
             command: "chat.start",
-          });
+          } as VscodeChatStart);
         }
       }
     } catch (error) {
       console.error("AI stream error:", error);
       await this._webviewView?.webview.postMessage({
+        to: "webview",
         command: "chat.error",
         payload: String(error),
-      });
+      } as VscodeChatError);
     }
   }
 
@@ -261,9 +282,10 @@ export class VSCodeToolsViewProvider implements vscode.WebviewViewProvider {
     try {
       if (this._webviewView) {
         await this._webviewView.webview.postMessage({
+          to: "webview",
           command: "fake-message",
           payload: message,
-        });
+        } as VscodeFakeMessage);
       }
     } catch (error) {
       console.error("Failed to send fake message:", error);
