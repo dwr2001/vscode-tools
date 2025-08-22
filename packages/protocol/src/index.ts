@@ -87,7 +87,7 @@ export type ToWebviewMessage =
 
 // Bidirectional communication message
 
-export type ToolCall = Protocol<
+export type VscodeToolCall = Protocol<
   "tool-call",
   {
     id: string;
@@ -95,7 +95,7 @@ export type ToolCall = Protocol<
     args: string;
   }
 >;
-export type ToolCallResult = Protocol<
+export type VscodeToolCallResult = Protocol<
   "tool-call-result",
   {
     id: string;
