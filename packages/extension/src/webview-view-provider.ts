@@ -15,7 +15,14 @@ import type {
   VscodeToolCallResult,
 } from "@vscode-tools/protocol";
 import { CREATE_FILE, CREATE_FILE_DESCRIPTION, CREATE_FILE_SCHEMA } from "@vscode-tools/protocol";
-import { type AssistantContent, type ModelMessage, streamText } from "ai";
+import {
+  type AssistantContent,
+  type ModelMessage,
+  ToolModelMessage,
+  type ToolResultPart,
+  UserModelMessage,
+  streamText,
+} from "ai";
 import * as vscode from "vscode";
 import { TreeContextProvider } from "./context/tree-context-provider";
 
@@ -117,7 +124,7 @@ export class VSCodeToolsViewProvider implements vscode.WebviewViewProvider {
     });
   }
 
-  private async startAIStream(messages: (UserMessageType | AssistantMessageType | ToolCallMessageType)[]) {
+  private async startAIStream(_messages: (UserMessageType | AssistantMessageType | ToolCallMessageType)[]) {
     try {
       const config = vscode.workspace.getConfiguration("vscode-tools");
       const apiKey = config.get<string>("apiKey");
@@ -128,36 +135,55 @@ export class VSCodeToolsViewProvider implements vscode.WebviewViewProvider {
 
       this._controller = new AbortController();
       const contextSuffix = await this.buildContextSuffix();
+      const messages: ModelMessage[] = [];
+
+      for (const msg of _messages) {
+        switch (msg.role) {
+          case "assistant": {
+            messages.push({
+              role: msg.role,
+              content: [
+                ...(msg.reasoning ? [{ type: "reasoning" as const, text: msg.reasoning }] : []),
+                ...(msg.content ? [{ type: "text" as const, text: msg.content }] : []),
+                ...(msg.toolcall
+                  ? Object.entries(msg.toolcall).map(([id, value]) => ({
+                      type: "tool-call" as const,
+                      toolCallId: id,
+                      toolName: value.name,
+                      input: value.args,
+                    }))
+                  : []),
+              ] as AssistantContent,
+            });
+            break;
+          }
+          case "tool-call": {
+            const last = messages.at(-1);
+            const part: ToolResultPart = {
+              toolCallId: msg.id,
+              toolName: msg.name,
+              output: { type: "text", value: msg.result ? `${msg.result}` : "" },
+              type: "tool-result",
+            };
+            if (last && last.role === "tool") {
+              last.content.push(part);
+            } else {
+              messages.push({ role: "tool", content: [part] });
+            }
+            break;
+          }
+          case "user": {
+            messages.push(msg);
+            break;
+          }
+        }
+      }
+
       const client = streamText({
         model: createDeepSeek({
           apiKey: apiKey,
         })("deepseek-chat"),
         messages: [
-          ...messages
-            .map((m): ModelMessage | undefined => {
-              if (m.role === "assistant") {
-                return {
-                  role: m.role,
-                  content: [
-                    ...(m.reasoning ? [{ type: "reasoning" as const, text: m.reasoning }] : []),
-                    ...(m.content ? [{ type: "text" as const, text: m.content }] : []),
-                    ...(m.toolcall
-                      ? Object.entries(m.toolcall).map(([id, value]) => ({
-                          type: "tool-call" as const,
-                          toolCallId: id,
-                          toolName: value.name,
-                          input: value.args,
-                        }))
-                      : []),
-                  ] as AssistantContent,
-                };
-              }
-              if (m.role === "user") {
-                return m as ModelMessage;
-              }
-              return undefined;
-            })
-            .filter((m): m is ModelMessage => m !== undefined),
           ...(contextSuffix
             ? [
                 {
@@ -166,6 +192,7 @@ export class VSCodeToolsViewProvider implements vscode.WebviewViewProvider {
                 },
               ]
             : []),
+          ...messages,
         ],
         tools: {
           [`${CREATE_FILE}`]: {

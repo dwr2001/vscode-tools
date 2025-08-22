@@ -13,5 +13,6 @@ export type AssistantMessageType = {
 export type ToolCallMessageType = {
   role: "tool-call";
   id: string;
+  name: string;
   result?: unknown;
 };
