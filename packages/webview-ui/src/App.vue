@@ -7,12 +7,12 @@
     ">
     <template v-for="(message, i) in messages" :key="i">
       <UserMessage v-if="message.role === 'user'" :message="message" />
-      <AssistantMessage v-else-if="message.role === 'assistant'" :message="message" @execute="tool$call" />
+      <AssistantMessage v-else-if="message.role === 'assistant'" :message="message" @execute="tool$call" @cancel="cancelToolCall" />
     </template>
   </main>
   <footer style="flex: 0 0 auto;">
     <button class="clear-history-button" style="width: 100%;" @click="messages = []">清除历史</button>
-    <Sender :status @submit="send" @cancel="abort" />
+    <Sender :status="status.state" @submit="send" @cancel="abort" />
   </footer>
 </template>
 
@@ -120,20 +120,32 @@ onUnmounted(() => {
 
 // messages and status - Updated to use AI SDK compatible types
 const messages = ref<(UserMessageType | AssistantMessageType | ToolCallMessageType)[]>([]);
-const status = ref<"ready" | "chatting">("ready");
+const status = ref<{
+  state: "ready" | "chatting";
+  pendingToolCalls: Map<string, { id: string; name: string; args: string }>;
+}>({
+  state: "ready",
+  pendingToolCalls: new Map(),
+});
 const index = ref(-1);
 const controller: Ref<AbortController | undefined> = ref(undefined);
 
 const tool$call$result = async (payload: VscodeToolCallResult["payload"]) => {
-  messages.value.push({ role: "tool-call", ...payload });
+  messages.value.push({ role: "tool-call", id: payload.id, name: payload.name, result: payload.result });
+
+  // 收到某个工具执行结果后，从待处理列表中移除
+  status.value.pendingToolCalls.delete(payload.id);
 
   scrollToBottom();
 
-  await init(JSON.parse(JSON.stringify(unref(messages))));
+  // 仅当所有工具调用都处理完成后，再继续对话
+  if (status.value.pendingToolCalls.size === 0) {
+    await init(JSON.parse(JSON.stringify(unref(messages))));
+  }
 };
 
 const send = async (content: string) => {
-  if (content.trim() === "" || status.value !== "ready") {
+  if (content.trim() === "" || status.value.state !== "ready") {
     console.error("unready or empty content");
     return;
   }
@@ -149,7 +161,7 @@ const send = async (content: string) => {
 
 const start = (_payload: VscodeChatStart["payload"]) => {
   index.value = messages.value.push({ role: "assistant" }) - 1;
-  status.value = "chatting";
+  status.value.state = "chatting";
   scrollToBottom();
 };
 
@@ -172,11 +184,18 @@ const chunk = (payload: VscodeChatDelta["payload"]) => {
       break;
     }
     case "tool-call": {
-      curr.toolcall = {
-        [payload.id]: {
-          ...payload,
-        },
+      if (!curr.toolcall) {
+        curr.toolcall = {};
+      }
+      curr.toolcall[payload.id] = {
+        ...payload,
       };
+      // 记录待处理的工具调用
+      status.value.pendingToolCalls.set(payload.id, {
+        id: payload.id,
+        name: payload.name,
+        args: payload.args,
+      });
       break;
     }
     case "tool-call-delta": {
@@ -196,7 +215,7 @@ const chunk = (payload: VscodeChatDelta["payload"]) => {
 };
 
 const finish = (_payload: VscodeChatFinish["payload"]) => {
-  status.value = "ready";
+  status.value.state = "ready";
   index.value = -1;
 };
 
@@ -206,7 +225,7 @@ const error = (payload: VscodeChatError["payload"]) => {
     last.content = payload;
   }
 
-  status.value = "ready";
+  status.value.state = "ready";
   index.value = -1;
 };
 
@@ -268,13 +287,20 @@ const init = async (payload: VscodeChatInit["payload"]) => {
             break;
           }
           case "tool-call": {
-            curr.toolcall = {
-              [event.chunk.toolCallId]: {
-                name: event.chunk.toolName,
-                args: JSON.stringify(event.chunk.input),
-              },
+            if (!curr.toolcall) {
+              curr.toolcall = {};
+            }
+            curr.toolcall[event.chunk.toolCallId] = {
+              name: event.chunk.toolName,
+              args: JSON.stringify(event.chunk.input),
             };
             console.log(curr.toolcall);
+            // 记录待处理的工具调用（开发模式）
+            status.value.pendingToolCalls.set(event.chunk.toolCallId, {
+              id: event.chunk.toolCallId,
+              name: event.chunk.toolName,
+              args: JSON.stringify(event.chunk.input),
+            });
             break;
           }
         }
@@ -298,7 +324,7 @@ const abort = (payload: VscodeChatAbort["payload"]) => {
   } else {
     controller.value?.abort();
   }
-  status.value = "ready";
+  status.value.state = "ready";
 };
 
 const tool$call = (payload: VscodeToolCall["payload"]) => {
@@ -306,6 +332,16 @@ const tool$call = (payload: VscodeToolCall["payload"]) => {
     vscode.postMessage({ to: "vscode", command: "tool-call", payload } as VscodeToolCall);
   } else {
     // nothing to do
+  }
+};
+
+const cancelToolCall = (toolCallId: string) => {
+  // 取消某个工具调用并从待处理列表中移除
+  status.value.pendingToolCalls.delete(toolCallId);
+
+  // 所有待处理清空后，继续对话
+  if (status.value.pendingToolCalls.size === 0) {
+    init(JSON.parse(JSON.stringify(unref(messages))));
   }
 };
 
