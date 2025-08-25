@@ -150,6 +150,15 @@ const send = async (content: string) => {
     return;
   }
 
+  if (status.value.pendingToolCalls.size !== 0) {
+    // 处理未完成的工具调用
+    for (const [_, toolCall] of status.value.pendingToolCalls) {
+      messages.value.push({ role: "tool-call", ...toolCall, result: "用户选择放弃此次工具调用，完成对话" });
+    }
+
+    status.value.pendingToolCalls.clear();
+  }
+
   messages.value.push({ role: "user", content: content.trim() });
 
   scrollToBottom();
@@ -335,9 +344,15 @@ const tool$call = (payload: VscodeToolCall["payload"]) => {
   }
 };
 
-const cancelToolCall = (toolCallId: string) => {
+const cancelToolCall = (payload: VscodeToolCall["payload"]) => {
   // 取消某个工具调用并从待处理列表中移除
-  status.value.pendingToolCalls.delete(toolCallId);
+  status.value.pendingToolCalls.delete(payload.id);
+
+  messages.value.push({
+    role: "tool-call",
+    result: "用户选择放弃此次工具调用，完成对话",
+    ...payload,
+  });
 
   // 所有待处理清空后，继续对话
   if (status.value.pendingToolCalls.size === 0) {

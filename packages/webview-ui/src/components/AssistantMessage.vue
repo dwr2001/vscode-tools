@@ -5,12 +5,15 @@ import MessageBubble from "./MessageBubble.vue";
 import CreateFile from "./tools/CreateFile.vue";
 import vscButton from "./ui/vsc-button.vue";
 import vscDetails from "./ui/vsc-details.vue";
+import { ref } from "vue";
 
 const { message } = defineProps<{ message: AssistantMessageType }>();
 
+const toggle = ref(false);
+
 const emits = defineEmits<{
   (e: "execute", args: VscodeToolCall["payload"]): void;
-  (e: "cancel", id: string): void;
+  (e: "cancel", args: VscodeToolCall["payload"]): void;
   (e: "retry", id: string): void;
 }>();
 </script>
@@ -30,7 +33,10 @@ const emits = defineEmits<{
     <div v-if="message.content" v-html="marked(message.content)" />
 
     <div class="tool-dialog" v-for="(tool, id) in message.toolcall" :key="id">
-      <span>{{ tool.name }}</span>
+      <span>
+        {{ tool.name }}
+        <i v-if="toggle" class="codicon codicon-check" />
+      </span>
 
       <!-- 显示处理状态 -->
       <div v-if="tool.status === 'processing'" class="processing-status">
@@ -39,15 +45,15 @@ const emits = defineEmits<{
       </div>
       <template v-else>
         <CreateFile v-if="tool.name === CREATE_FILE" :args="(JSON.parse(tool.args) as CREATE_FILE_PARAMETERS)" />
-        <div class="tool-actions" v-if="tool.status !== 'processing'">
+        <div class="tool-actions" v-if="toggle === false && tool.status !== 'processing'">
           <vsc-button 
-            @click.once="emits('execute', { id, ...tool })"
+            @click="() => { emits('execute', { id, ...tool }); toggle = true; }"
           >
             <i class="codicon codicon-play" />
           </vsc-button>
           
           <vsc-button 
-            @click="emits('cancel', id)"
+            @click="() => { emits('cancel', { id, ...tool }); toggle = true; }"
           >
             <i class="codicon codicon-stop" />
           </vsc-button>
